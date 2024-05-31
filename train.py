@@ -1,5 +1,5 @@
 """
-Training script for octopi dataset
+train-inference full pipeline
 """
 
 import hydra
@@ -9,13 +9,14 @@ from omegaconf import OmegaConf
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, random_split
+import pandas as pd
+from tqdm import tqdm
+from sklearn.metrics import accuracy_score
 # from skorch import NeuralNetClassifier
 # from skorch.helper import predefined_split
 # from skorch.callbacks import Checkpoint
-from tqdm import tqdm
-from sklearn.metrics import accuracy_score
 
-from dataset import ImageDataset, get_transforms, collate_transforms
+from utils.dataset import ImageDataset, get_transforms, collate_transforms
 device ='cuda' if torch.cuda.is_available() else 'cpu'
 
 def get_outputs(model, dl, criterion=None):
@@ -53,21 +54,22 @@ def main(cfg):
 
   val_len = int(cfg.dataset.val_split * len(ds))
   train_len = len(ds) - val_len
-  train_dataset, val_dataset = random_split(ds, [train_len, val_len])
+  train_ds, val_ds = random_split(ds, [train_len, val_len])
   print(f"train: {train_len}, val: {val_len}, test: {len(test_ds)}")
   
   # train_transform = get_transforms(augment=False) # TODO: test augments
   # val_transform = get_transforms(augment=False)
    
   # use collate to apply on the fly; want for train only
-  train_loader = DataLoader(train_dataset, batch_size=cfg.dataset.batch_size, shuffle=True,
+  train_loader = DataLoader(train_ds, batch_size=cfg.dataset.batch_size, shuffle=True,
                             # collate_fn=lambda x: collate_transforms(x, train_transform),
                             num_workers=cfg.dataset.num_workers,
                             pin_memory=True)
-  val_loader = DataLoader(val_dataset, batch_size=cfg.dataset.batch_size, shuffle=False, 
+  val_loader = DataLoader(val_ds, batch_size=cfg.dataset.batch_size, shuffle=False, 
                           # collate_fn=lambda x: collate_transforms(x, val_transform),
                           num_workers=cfg.dataset.num_workers,
                           pin_memory=True)
+  test_loader = DataLoader(test_ds, batch_size=cfg.dataset.batch_size, shuffle=False, num_workers=cfg.dataset.num_workers)
 
   model = instantiate(cfg.model).to(device)
   criterion = nn.CrossEntropyLoss(weight=torch.tensor(cfg.dataset.class_weights, device=device))
@@ -114,13 +116,8 @@ def main(cfg):
     if cfg.wandb.enabled:
       wandb.log({"train/loss": avg_train_loss, "val/loss": avg_val_loss, "val/acc": avg_val_acc})
 
-
   # inference
-  model.load_state_dict(torch.load(cfg.train.out_dir + "/" + cfg.wandb.name + ".pt"))
   model.eval()
-
-  test_loader = DataLoader(test_ds, batch_size=cfg.dataset.batch_size, shuffle=False, num_workers=cfg.dataset.num_workers)
-
   probs, labels, _ = get_outputs(model, test_loader)
   preds = probs.argmax(dim=1).numpy()
   labels = labels.numpy()
@@ -129,11 +126,12 @@ def main(cfg):
 
   # save as .pt
   if cfg.train.save_model:
-      torch.save(model.state_dict(), f"{cfg.train.out_dir}/{cfg.wandb.name}.pt")
+    torch.save(model.state_dict(), f"{cfg.train.out_dir}/{cfg.wandb.name}.pt")
 
   if cfg.wandb.enabled:
     artifact = wandb.Artifact(f"{cfg.wandb.name}", type="model")
     artifact.add_file(f"{cfg.train.out_dir}/{cfg.wandb.name}.pt")
+    artifact.add_file(f"{cfg.train.out_dir}/{cfg.wandb.name}_preds.csv")
     run.log_artifact(artifact)
     run.finish()
 

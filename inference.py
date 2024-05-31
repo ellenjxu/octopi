@@ -7,7 +7,7 @@ import wandb
 import torch
 from torch.utils.data import DataLoader
 import pandas as pd
-from dataset import ImageDataset
+from utils.dataset import ImageDataset
 from train import get_outputs
 
 device ='cuda' if torch.cuda.is_available() else 'cpu'
