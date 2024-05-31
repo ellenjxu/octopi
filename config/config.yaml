@@ -1,0 +1,25 @@
+defaults:
+  - _self_
+  - model: resnet
+
+dataset:
+  root: "data"
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.2
+  class_weights: [100.0, 1.0]
+
+train:
+  lr: 0.001
+  epochs: 10
+  save_model: True
+
+wandb:
+  enabled: True
+  project: "octopi"
+  job_type: "train_resnet"
+  name: "resnet"
+
+hydra:
+  run:
+    dir: "."

@@ -1,0 +1,17 @@
+*.ipynb
+*.pyc
+*.pyo
+*.egg
+*.egg-info
+__pycache__/
+*.log
+*.pth
+
+wandb/
+outputs/
+.hydra/
+
+data/
+inference_code/
+
+.vscode/

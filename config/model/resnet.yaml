@@ -1,0 +1,2 @@
+_target_: models.resnet.ResNet
+n_classes: 2
