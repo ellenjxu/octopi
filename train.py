@@ -1,3 +1,7 @@
+"""
+Training script for octopi dataset
+"""
+
 import hydra
 from hydra.utils import instantiate
 import wandb
@@ -9,33 +13,32 @@ from torch.utils.data import DataLoader, random_split
 # from skorch.helper import predefined_split
 # from skorch.callbacks import Checkpoint
 from tqdm import tqdm
+from sklearn.metrics import accuracy_score
 
 from dataset import ImageDataset, get_transforms, collate_transforms
 device ='cuda' if torch.cuda.is_available() else 'cpu'
 
 def get_outputs(model, dl, criterion=None):
-  preds = []
-  labels = []
-  losses = []
-
+  scores, labels, losses = [], [], []
   model = model.eval()
 
   with torch.no_grad():
-      model = model.eval()
-      for images, label in dl:
-        images, label = images.to(device), label.to(device)
-        pred = model(images)
+    for images, label in tqdm(dl):
+      images, label = images.to(device), label.to(device)
+      pred = model(images)
 
-        if criterion is not None:
-          loss = criterion(pred, label)
-          losses.append(loss.cpu())
+      if criterion is not None:
+        loss = criterion(pred, label)
+        losses.append(loss.cpu())
 
-        preds.append(pred.cpu())
-        labels.append(label.cpu())
-
-  model = model.train()
-
-  return preds, labels, losses
+      probs = torch.softmax(pred, dim=1) # normalized
+      scores.append(probs.cpu())
+      labels.append(label.cpu())
+  
+  scores = torch.cat(scores, dim=0)
+  labels = torch.cat(labels, dim=0)
+  
+  return scores, labels, losses
 
 @hydra.main(config_path="config/", config_name="config", version_base="1.1")
 def main(cfg):
@@ -43,7 +46,7 @@ def main(cfg):
     config = OmegaConf.to_container(
       cfg, resolve=True, throw_on_missing=True
     )
-    run = wandb.init(project=cfg.wandb.project, save_code=True, job_type=cfg.wandb.job_type, config=config)
+    run = wandb.init(project=cfg.wandb.project, name=cfg.wandb.name, save_code=True, job_type=cfg.wandb.job_type, config=config)
 
   ds = ImageDataset(root=cfg.dataset.root, split="train", transform=None)
   test_ds = ImageDataset(root=cfg.dataset.root, split="test", transform=None)
@@ -51,6 +54,7 @@ def main(cfg):
   val_len = int(cfg.dataset.val_split * len(ds))
   train_len = len(ds) - val_len
   train_dataset, val_dataset = random_split(ds, [train_len, val_len])
+  print(f"train: {train_len}, val: {val_len}, test: {len(test_ds)}")
   
   # train_transform = get_transforms(augment=False) # TODO: test augments
   # val_transform = get_transforms(augment=False)
@@ -102,22 +106,34 @@ def main(cfg):
     
     avg_train_loss = total_loss / len(train_loader)
 
-    # Validation loop
-    _, _, losses = get_outputs(model, val_loader, criterion)
+    preds, labels, losses = get_outputs(model, val_loader, criterion)
     avg_val_loss = torch.stack(losses).mean()
+    avg_val_acc = accuracy_score(labels.numpy(), preds.argmax(dim=1).numpy())
 
-    print(f"\nEpoch {epoch+1}/{cfg.train.epochs}")
-    print(f"Train Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
+    print(f"train loss: {avg_train_loss:.4f}, val loss: {avg_val_loss:.4f}, val acc: {avg_val_acc:.4f}")
     if cfg.wandb.enabled:
-      wandb.log({"Train Loss": avg_train_loss, "Validation Loss": avg_val_loss})
+      wandb.log({"train/loss": avg_train_loss, "val/loss": avg_val_loss, "val/acc": avg_val_acc})
+
+
+  # inference
+  model.load_state_dict(torch.load(cfg.train.out_dir + "/" + cfg.wandb.name + ".pt"))
+  model.eval()
+
+  test_loader = DataLoader(test_ds, batch_size=cfg.dataset.batch_size, shuffle=False, num_workers=cfg.dataset.num_workers)
+
+  probs, labels, _ = get_outputs(model, test_loader)
+  preds = probs.argmax(dim=1).numpy()
+  labels = labels.numpy()
+  output_df = pd.DataFrame({'pos_prob': probs[:,1], 'prediction': preds, 'label': labels}) # TODO: match with patient slide id
+  output_df.to_csv(f"{cfg.train.out_dir}/{cfg.wandb.name}_preds.csv", index=False)
 
   # save as .pt
   if cfg.train.save_model:
-      torch.save(model.state_dict(), f"models/{cfg.wandb.name}.pt")
+      torch.save(model.state_dict(), f"{cfg.train.out_dir}/{cfg.wandb.name}.pt")
 
   if cfg.wandb.enabled:
     artifact = wandb.Artifact(f"{cfg.wandb.name}", type="model")
-    artifact.add_file(f"models/{cfg.wandb.name}.pt")
+    artifact.add_file(f"{cfg.train.out_dir}/{cfg.wandb.name}.pt")
     run.log_artifact(artifact)
     run.finish()
 

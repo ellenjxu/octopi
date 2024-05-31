@@ -13,12 +13,13 @@ train:
   lr: 0.001
   epochs: 10
   save_model: True
+  out_dir: "out/" # ${now:%Y-%m-%d_%H-%M-%S}"
 
 wandb:
   enabled: True
   project: "octopi"
   job_type: "train_resnet"
-  name: "resnet"
+  name: "resnet_baseline"
 
 hydra:
   run:

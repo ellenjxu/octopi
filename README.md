@@ -1,2 +1,2 @@
 # octopi
-run `get_data.sh`, downloads into data/
+run `utils/get_data.sh`, downloads into data/
