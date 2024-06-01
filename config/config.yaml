@@ -2,18 +2,22 @@ defaults:
   - _self_
   - model: resnet
 
-dataset:
-  root: "data"
+train:
+  data_dir: "data/train"
+  lr: 0.001
   batch_size: 32
   num_workers: 4
   val_split: 0.2
-  class_weights: [100.0, 1.0]
-
-train:
-  lr: 0.001
+  class_weights: [1.0, 1.0]
   epochs: 10
   save_model: True
   out_dir: "out/" # ${now:%Y-%m-%d_%H-%M-%S}"
+
+test:
+  data_dir: "data/test"
+  batch_size: 32
+  num_workers: 4
+  out_dir: "out/"
 
 wandb:
   enabled: True

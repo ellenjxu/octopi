@@ -5,19 +5,14 @@ import os
 from pathlib import Path
 import numpy as np
 
-class ImageDataset(Dataset):
+class TrainDataset(Dataset):
   """
   loads octopi malaria Giemsa dataset
-  use "train" for train/val set, "test" for external test set
   """
-  def __init__(self, root="data/", split="train", transform=None):
-    pos_files = list(Path(os.path.join(root, split, "pos")).glob('*.npy'))
-    neg_files = list(Path(os.path.join(root, split, "neg")).glob('*.npy'))
-    pos = np.concatenate([np.load(f) for f in pos_files])
-    neg = np.concatenate([np.load(f) for f in neg_files[:10]]) # TODO: first 10 for now
-
-    self.images = np.concatenate([pos, neg])
-    self.labels = np.concatenate([np.ones(len(pos)), np.zeros(len(neg))])
+  def __init__(self, data_dir, transform=None):
+    self.files = list(Path(data_dir).rglob('*.npy'))
+    self.images = np.concatenate([np.load(f) for f in self.files])
+    self.labels = np.concatenate([np.ones(len(self.files)) if "pos" in f.parent.name else np.zeros(len(self.files)) for f in self.files])
     self.transform = transform
 
   def __len__(self):
@@ -30,7 +25,21 @@ class ImageDataset(Dataset):
     if self.transform:
       image = self.transform(image)
     return image, torch.tensor(label, dtype=torch.long)
-  
+
+class SinglePatientDataset(Dataset):
+  """
+  gets a single patient dataset file .npy
+  """
+  def __init__(self, filepath):
+    self.images = np.load(filepath)
+    self.labels = np.ones(len(self.images)) if "pos" in filepath.parent.name else np.zeros(len(self.images))
+
+  def __len__(self):
+    return len(self.images)
+
+  def __getitem__(self, idx):
+    return torch.tensor(self.images[idx], dtype=torch.float32) / 255.0, torch.tensor(self.labels[idx], dtype=torch.long)
+
 def get_transforms(augment=True):
   transform = [
     # transforms.ToTensor(),

@@ -1,0 +1,2 @@
+_target_: models.tinynn.TinyNN
+n_classes: 2
