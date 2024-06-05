@@ -177,7 +177,7 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
   confusion_df.set_index('file_name', inplace=True)
   confusion_df = confusion_df.div(confusion_df.sum(axis=1), axis=0) # normalize
 
-  plt.figure(figsize=(10, 6))
+  plt.figure(figsize=(10, 12))
   sns.heatmap(confusion_df, annot=True, fmt=".4f", cmap="YlGnBu")
   # colors = {'TP': 'Blues', 'FP': 'Reds', 'TN': 'Blues', 'FN': 'Reds'}
     

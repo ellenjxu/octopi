@@ -33,7 +33,7 @@ def get_outputs(model, dl, criterion=None):
         loss = criterion(pred, label)
         losses.append(loss.cpu())
 
-      probs = torch.softmax(pred, dim=1) # normalized
+      probs = torch.softmax(pred, dim=1)
       scores.append(probs.cpu())
       labels.append(label.cpu())
   
