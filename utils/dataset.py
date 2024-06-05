@@ -12,7 +12,7 @@ class TrainDataset(Dataset):
   def __init__(self, data_dir, transform=None):
     self.files = list(Path(data_dir).rglob('*.npy'))
     self.images = np.concatenate([np.load(f) for f in self.files])
-    self.labels = np.concatenate([np.ones(len(self.files)) if "pos" in f.parent.name else np.zeros(len(self.files)) for f in self.files])
+    self.labels = np.concatenate([np.ones(len(self.images)) if "pos" in f.parent.name else np.zeros(len(self.images)) for f in self.files])
     self.transform = transform
 
   def __len__(self):
