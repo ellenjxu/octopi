@@ -4,7 +4,7 @@ TRAIN_DIR="data/train"
 TEST_DIR="data/test"
 BUCKET_URL_TRAIN="gs://malaria-training/init-train"
 BUCKET_URL="gs://octopi-malaria-data/npy"
-NEG_FILES="get_data_neg.txt"
+NEG_FILES="neg.txt"
 DROPBOX_URL="https://dl.dropboxusercontent.com/scl/fo/hj6k3vof6j384ukw3xr3w/h?dl=1&e=1&st=t3xscwm5"
 
 mkdir -p "$TRAIN_DIR/neg"
