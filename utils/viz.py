@@ -123,6 +123,7 @@ def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5):
   fnr_list = calculate_fnr(csv_dir, threshold_path)
   ratio_df = pd.DataFrame(fnr_list, columns=['Pos File', 'Threshold File', 'Ratio'])
   matrix_df = ratio_df.pivot(index='Threshold File', columns='Pos File', values='Ratio')
+  matrix_df.to_csv(os.path.join(out_dir, 'ratio_matrix.csv'))
 
   cm = 1/2.54 
   fig, ax = plt.subplots(figsize=(5.8*cm, 4.0*cm))
@@ -175,6 +176,7 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
   confusion_matrix = calculate_confusion_matrix(csv_dir, threshold)
   confusion_df = pd.DataFrame(confusion_matrix, columns=['file_name', 'TP', 'FP', 'TN', 'FN'])
   confusion_df.set_index('file_name', inplace=True)
+  confusion_df.to_csv(os.path.join(out_dir, 'confusion_matrix.csv'))
   confusion_df = confusion_df.div(confusion_df.sum(axis=1), axis=0) # normalize
 
   plt.figure(figsize=(10, 12))

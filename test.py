@@ -25,7 +25,11 @@ def main(cfg):
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
-  test_files = list(Path(cfg.test.data_dir).rglob('*.npy')) # [:20]
+  if cfg.test.use_full_dataset:
+    test_files = list(Path(cfg.test.data_dir).rglob('*.npy'))
+  else:
+    test_files = list(Path(cfg.test.data_dir).rglob('*.npy'))[:20]
+
   for filepath in test_files:
     dataset_id = filepath.name.split("_cleaned")[0].split(".npy")[0]
     test_ds = SinglePatientDataset(filepath)
