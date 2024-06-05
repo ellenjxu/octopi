@@ -109,8 +109,8 @@ def calculate_fnr(csv_dir, threshold_path):
       pos_df = pd.read_csv(pos_file_path)
       for i, row in thresholds_df.iterrows():
         threshold = row['threshold']
-        ratio = sum(pos_df['parasite output'] <= threshold) / len(pos_df) # fnr
-        fnr_list.append([_get_label(pos_file), row['file_name'], ratio])
+        fnr = 1 - (sum(pos_df['parasite output'] > threshold) / len(pos_df)) # FNR = 1-TP/(TP+FN)
+        fnr_list.append([_get_label(pos_file), row['file_name'], fnr])
         
   return fnr_list
 
@@ -122,6 +122,7 @@ def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5):
   out_path = os.path.join(out_dir, 'ratio_matrix.pdf')
 
   fnr_list = calculate_fnr(csv_dir, threshold_path)
+  print(fnr_list)
   # print(f"mean fnr: {np.mean([x[2] for x in fnr_list]):.4f}")
   ratio_df = pd.DataFrame(fnr_list, columns=['Pos File', 'Threshold File', 'Ratio'])
   matrix_df = ratio_df.pivot(index='Threshold File', columns='Pos File', values='Ratio')

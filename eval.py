@@ -26,7 +26,7 @@ def main(cfg):
   # fpr_list, fnr_list = calculate_fpr_fnr(csv_dir, threshold=best_threshold)
   # print(f"FPR: {np.mean(fpr_list):.4f}, FNR: {np.mean(fnr_list):.4f}")
 
-  plot_ratio_matrix(csv_dir, out_dir)
+  plot_ratio_matrix(csv_dir, out_dir) # TODO: threshold
   plot_confusion_matrix(csv_dir, out_dir, threshold=0.001)
 
 if __name__ == "__main__":

@@ -12,6 +12,6 @@ wandb/
 *.pth
 *.pt
 
-out/
+# out/
 data/
 inference_code/
