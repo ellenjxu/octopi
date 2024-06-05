@@ -1,5 +1,5 @@
 """
-runs model.pt and saves preds on external test set to predictions.csv
+runs model.pt and saves patient-level preds on external test set
 """
 
 import hydra
@@ -10,7 +10,6 @@ import pandas as pd
 from utils.dataset import SinglePatientDataset
 from train import get_outputs
 from pathlib import Path
-import tqdm
 import os
 
 device ='cuda' if torch.cuda.is_available() else 'cpu'
@@ -26,8 +25,8 @@ def main(cfg):
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
-  for filepath in list(Path(cfg.test.data_dir).rglob('*.npy'))[:20]: # TODO: 10 neg 10 pos for testing
-    dataset_id = filepath.name.split("_cleaned")[0]
+  for filepath in list(Path(cfg.test.data_dir).rglob('*.npy'))[:20]: # 10 neg 10 pos for testing
+    dataset_id = filepath.name.split("_cleaned")[0].split(".npy")[0]
     test_ds = SinglePatientDataset(filepath)
     test_loader = DataLoader(test_ds, batch_size=cfg.test.batch_size, shuffle=False, num_workers=cfg.test.num_workers)
 
