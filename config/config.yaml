@@ -20,10 +20,9 @@ test:
   out_dir: "out/"
 
 evaluate:
-  csv_dir: "out/resnet_baseline/csv"
-  cell_count: "utils/cell_count.csv"
-  neg_txt: "utils/neg.txt"
-  out_dir: "out/resnet_baseline/thresholds"
+  model_dir: "out/resnet_baseline"
+  csv_dir: ${evaluate.model_dir}/csv
+  out_dir: ${evaluate.model_dir}/thresholds
 
 wandb:
   enabled: True
