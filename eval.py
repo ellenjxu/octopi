@@ -2,6 +2,8 @@
 eval pipeline
 - calculates FNR for 5 LOD threshold for each csv
 - plot FNR vs FP ratio matrix
+
+outputs: thresholds/ in model folder
 """
 
 import hydra
@@ -15,15 +17,17 @@ device ='cuda' if torch.cuda.is_available() else 'cpu'
 
 @hydra.main(config_path="config/", config_name="config", version_base="1.1")
 def main(cfg):
-  # TODO: Currently picks lowest possible threshold for LOD, doesn’t handle well when there are less than 5 FP / no high positive prediction scores
-  plot_threshold(cfg.evaluate.csv_dir, cfg.evaluate.out_dir)
+  csv_dir = cfg.evaluate.csv_dir
+  out_dir = cfg.evaluate.out_dir
 
-  # fpr and fnr
-  fpr_list, fnr_list = calculate_fpr_fnr(cfg.evaluate.csv_dir, threshold=0.5)
-  print(f"FPR: {np.mean(fpr_list):.4f}, FNR: {np.mean(fnr_list):.4f}")
+  # plot_threshold(csv_dir, out_dir) # TODO: too sensitive so not showing up
+  # best_threshold = plot_roc_curve(csv_dir, out_dir) # TODO: from val
+  # print(f"Best threshold: {best_threshold:.4f}")
+  # fpr_list, fnr_list = calculate_fpr_fnr(csv_dir, threshold=best_threshold)
+  # print(f"FPR: {np.mean(fpr_list):.4f}, FNR: {np.mean(fnr_list):.4f}")
 
-  # ratio matrix
-  plot_ratio_matrix(cfg.evaluate.csv_dir, cfg.evaluate.out_dir)
-  
+  plot_ratio_matrix(csv_dir, out_dir)
+  plot_confusion_matrix(csv_dir, out_dir, threshold=0.001)
+
 if __name__ == "__main__":
   main()
