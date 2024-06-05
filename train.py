@@ -73,21 +73,6 @@ def main(cfg):
   criterion = nn.CrossEntropyLoss(weight=torch.tensor(cfg.train.class_weights, device=device))
   optimizer = torch.optim.Adam(model.parameters(), lr=cfg.train.lr)
 
-  # net = NeuralNetClassifier(
-  #   module=model,
-  #   criterion=criterion,
-  #   optimizer=optimizer,
-  #   lr=cfg.train.lr,
-  #   batch_size=cfg.dataset.batch_size,
-  #   max_epochs=cfg.train.epochs,
-  #   device=device,
-  #   train_split=predefined_split(val_dataset),  # using the validation dataset to validate
-  #   verbose=2,
-  #   callbacks=[Checkpoint(dirname=cfg.wandb.project, monitor='valid_loss', mode='min')]
-  # ) 
-
-  # net.fit(train_dataset)
-
   for epoch in range(cfg.train.epochs):
     print(f"epoch: {epoch}")
     model.train()
