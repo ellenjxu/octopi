@@ -42,8 +42,7 @@ def calculate_threshold(csv_dir):
       file_path = os.path.join(csv_dir, file_name)
       df = pd.read_csv(file_path)
       df_sorted = df.sort_values(by='parasite output', ascending=False)
-      parasite_output_array = df_sorted['parasite output'].to_numpy()
-      sorted_numbers = np.sort(parasite_output_array)
+      sorted_numbers = df_sorted['parasite output'].to_numpy()
 
       for i, num in enumerate(sorted_numbers):
         normalized_count = (i + 1) / cell_count
@@ -122,8 +121,6 @@ def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5):
   out_path = os.path.join(out_dir, 'ratio_matrix.pdf')
 
   fnr_list = calculate_fnr(csv_dir, threshold_path)
-  print(fnr_list)
-  # print(f"mean fnr: {np.mean([x[2] for x in fnr_list]):.4f}")
   ratio_df = pd.DataFrame(fnr_list, columns=['Pos File', 'Threshold File', 'Ratio'])
   matrix_df = ratio_df.pivot(index='Threshold File', columns='Pos File', values='Ratio')
 
