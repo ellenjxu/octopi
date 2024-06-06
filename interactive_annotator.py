@@ -85,7 +85,7 @@ app.layout = html.Div([
         id='sort-order',
         options=[
             {'label': 'Ascending', 'value': 'asc'},
-            {'label': 'Descending', 'value': 'desc'}
+            {'label': 'Descending', 'value': 'desc'},
         ],
         value='asc'
     ),
@@ -109,8 +109,12 @@ classes = [
     {'name': 'non-parasite', 'color': '#0000ff'}  # non-parasite-blue
 ]
 selected_indices = []
+sort_order_global = None
 
-# Callback to update images based on selected slide and page number
+# Load the numpy data and CSV data once
+npy_data_cache = {}
+csv_data_cache = {}
+
 @app.callback(
     [Output('slide-info', 'children'),
      Output('image-grid', 'children')],
@@ -125,6 +129,7 @@ selected_indices = []
      State('sort-order', 'value')]
 )
 def update_images(slide, page_number, sort_order, n_clicks, current_grid, class_panel, slide_state, page_state, sort_order_state):
+    global selected_indices, npy_data_cache, csv_data_cache
     ctx = dash.callback_context
 
     # Update annotation if the annotate button was clicked
@@ -133,22 +138,28 @@ def update_images(slide, page_number, sort_order, n_clicks, current_grid, class_
             selected_class = class_panel[0]['props']['children'][1]['props']['value']
             for index in selected_indices:
                 annotations[index] = selected_class
+            selected_indices = []
 
     if slide is None:
         return "No slide selected", html.Div()
 
-    selected_file = os.path.join(NPY_FOLDER_PATH, slide + '.npy')
-    npy_data = np.load(selected_file)
-    csv_data = pd.read_csv(os.path.join(SCORES_FOLDER_PATH, slide + '.csv'))
+    # Load data from cache or file
+    if slide not in npy_data_cache:
+        npy_data_cache[slide] = np.load(os.path.join(NPY_FOLDER_PATH, slide + '.npy'))
+        csv_data_cache[slide] = pd.read_csv(os.path.join(SCORES_FOLDER_PATH, slide + '.csv'))
+
+    npy_data = npy_data_cache[slide]
+    csv_data = csv_data_cache[slide]
 
     index = csv_data['index']
     scores = csv_data['parasite output']
 
     # Sort the scores and index based on the selected order
-    if sort_order == 'asc':
-        sorted_indices = scores.sort_values(ascending=True).index
-    else:
-        sorted_indices = scores.sort_values(ascending=False).index
+    if sort_order_global != sort_order:
+        if sort_order == 'asc':
+            sorted_indices = scores.sort_values(ascending=True).index
+        else:
+            sorted_indices = scores.sort_values(ascending=False).index
 
     sorted_scores = scores[sorted_indices]
     sorted_data = npy_data[index[sorted_indices]]
@@ -165,9 +176,8 @@ def update_images(slide, page_number, sort_order, n_clicks, current_grid, class_
         encoded_image = numpy_array_to_image_string(arr)
         style = {'height': '124px', 'width': '124px', 'box-shadow': 'none'}
         if i in annotations:
-            style['box-shadow'] = f'0 0 5px 5px {annotations[i]}'
-        if i in selected_indices:
-            style['box-shadow'] = f'0 0 5px 5px {selected_class}'  # Highlight with the selected class color
+           # highligh with the annotated class
+            style['box-shadow'] = '0 0 5px 5px ' + annotations[i]
         image_html = html.Img(src=f"data:image/png;base64,{encoded_image}", style=style, id={'type': 'image', 'index': i}, n_clicks=0)
         score_html = html.Div(f"{score:.2f}", style={'textAlign': 'center'})
         number_html = html.Div(f"[{i}]", style={'textAlign': 'center', 'color': 'gray'})
@@ -188,13 +198,16 @@ def select_image(n_clicks, styles):
         return styles
     prop_id = ctx.triggered[0]['prop_id'].split('.')[0]
     prop_id_dict = json.loads(prop_id)
-    index = prop_id_dict['index'] - 1
-    if index in selected_indices:
-        selected_indices.remove(index+1)
-        styles[index]['box-shadow'] = 'none'
+    index = prop_id_dict['index'] 
+    if index in annotations:
+        annotations.pop(index)
+        styles[index-1]['box-shadow'] = 'none'
+    elif index in selected_indices:
+        selected_indices.remove(index)
+        styles[index-1]['box-shadow'] = 'none'
     else:
-        selected_indices.append(index+1)
-        styles[index]['box-shadow'] = '0 0 5px 5px grey'
+        selected_indices.append(index)
+        styles[index-1]['box-shadow'] = '0 0 5px 5px brown'
     return styles
 # Callback to reset page number when a new slide is selected
 @app.callback(
