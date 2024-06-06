@@ -3,6 +3,7 @@ defaults:
   - model: tinynn
 
 train:
+  log: True
   data_dir: "data/train"
   lr: 0.001
   batch_size: 32
@@ -21,12 +22,12 @@ test:
   out_dir: "out/"
 
 evaluate:
+  log: False
   model_dir: "out/tinynn"
   csv_dir: ${evaluate.model_dir}/csv
   out_dir: ${evaluate.model_dir}/thresholds
 
 wandb:
-  enabled: True
   project: "octopi"
   job_type: "train_tinynn"
   name: "tinynn"

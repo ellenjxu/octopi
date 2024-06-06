@@ -44,7 +44,7 @@ def get_outputs(model, dl, criterion=None):
 
 @hydra.main(config_path="config/", config_name="config", version_base="1.1")
 def main(cfg):
-  if cfg.wandb.enabled:
+  if cfg.train.log:
     config = OmegaConf.to_container(
       cfg, resolve=True, throw_on_missing=True
     )
@@ -111,7 +111,7 @@ def main(cfg):
     avg_val_acc = accuracy_score(labels.numpy(), preds.argmax(dim=1).numpy())
 
     print(f"train loss: {avg_train_loss:.4f}, val loss: {avg_val_loss:.4f}, val acc: {avg_val_acc:.4f}")
-    if cfg.wandb.enabled:
+    if cfg.train.log:
       wandb.log({"train/loss": avg_train_loss, "val/loss": avg_val_loss, "val/acc": avg_val_acc})
 
   if cfg.train.save_model:
@@ -119,7 +119,7 @@ def main(cfg):
     os.makedirs(out_dir, exist_ok=True)
     torch.save(model.state_dict(), os.path.join(out_dir, "model.pt"))
 
-  if cfg.wandb.enabled:
+  if cfg.train.log:
     artifact = wandb.Artifact(f"{cfg.wandb.name}", type="model")
     artifact.add_file(os.path.join(out_dir, "model.pt"))
     run.log_artifact(artifact)

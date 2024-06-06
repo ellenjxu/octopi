@@ -24,3 +24,8 @@ class ResNet(nn.Module):
     features = x.view(x.size(0), -1)
     x = self.fc(features)
     return x
+  
+  def get_features(self,x):
+      x = self.base_model(x)
+      features = x.view(x.size(0), -1)
+      return features

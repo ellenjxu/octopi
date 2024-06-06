@@ -4,10 +4,15 @@ helper functions for plotting evaluation
 
 import os
 import pandas as pd
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import roc_curve, auc
+
+import umap
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 FP_target = 5
 
@@ -256,3 +261,82 @@ def plot_roc_curve(csv_dir, out_dir):
   plt.show()
 
   return best_threshold
+
+def plot_umap(features, labels, out_dir):
+  """
+  umap of neg vs pos dataset, given model features
+  """
+  reducer = umap.UMAP()
+  embedding = reducer.fit_transform(features)
+
+  mec = np.full((len(features), 4), [1.00, 1.00, 1.00, 1.0])
+  for i in range(len(mec)):
+      if labels[i] == 0:
+          mec[i] = [120/255, 180/255, 250/255, 1]  # blue
+      else:
+          mec[i] = [250/255, 150/255, 150/255, 1]  # pink
+
+  plt.rc('font', size=20)
+  fig, ax = plt.subplots(figsize=(8, 8))
+  ax.scatter(embedding[:, 0], embedding[:, 1], c=mec, s=2)
+
+  legend_elements = [
+    Line2D([0], [0], marker='o', color='w', markeredgecolor=[250/255, 150/255, 150/255], markersize=5, mew=2, label='Positive'),
+    Line2D([0], [0], marker='o', color='w', markeredgecolor=[120/255, 180/255, 250/255], markersize=5, mew=2, label='Negative')
+  ]
+  ax.legend(handles=legend_elements)
+
+  plt.tight_layout()
+  plt.savefig(os.path.join(out_dir, 'umap_plot.png'), dpi=300)
+  plt.show()
+
+def plot_incorrect(csv_dir, data_dir, out_dir, threshold=0.5, num_csvs=3, num_samples=3):
+  """
+  plot images of incorrect preds
+  """
+  incorrect_samples = []
+
+  for preds in os.listdir(csv_dir)[:num_csvs]:
+    df = pd.read_csv(os.path.join(csv_dir, preds))
+    if preds in neg_files:
+      incorrect = df[df['parasite output'] > threshold].copy()
+      incorrect.sort_values(by='parasite output', ascending=False, inplace=True)
+    else:
+      incorrect = df[df['parasite output'] < threshold].copy()
+      incorrect.sort_values(by='parasite output', ascending=True, inplace=True)
+
+    # samples most highly misclassified
+    sampled_incorrect = incorrect.head(num_samples)
+    sampled_incorrect['file_name'] = preds
+    incorrect_samples.append(sampled_incorrect)
+
+  incorrect_df = pd.concat(incorrect_samples)
+  # incorrect_df.to_csv(os.path.join(out_dir, 'incorrect_samples.csv'), index=False)
+
+  num_images = len(incorrect_df)
+  cols = min(num_samples, 5)
+  rows = (num_images + cols - 1) // cols
+  
+  fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 3))
+  axes = axes.flatten()
+
+  for i, (idx, row) in enumerate(incorrect_df.iterrows()):
+    npy_file_name = row['file_name'].replace('.csv', '')
+    for file_name in glob.glob(os.path.join(data_dir, '**', '*.npy'), recursive=True):
+      if npy_file_name in file_name: # since npy_file_name has been cleaned
+        image_data = np.load(file_name)
+        image = image_data[row['index']].transpose(1, 2, 0) # (4,31,31) -> (31,31,4)
+        axes[i].imshow(image, cmap='gray')
+        # axes[i].set_title(f"{_get_label(row['file_name'])}\nIndex: {row['index']}\nPred: {row['parasite output']:.2f}\nLabel: {row['label']}")
+        axes[i].set_title(f"Pred: {row['parasite output']:.2f}\nLabel: {row['label']}")
+        axes[i].axis('off')
+        break
+    else:
+      print(f"{npy_file_name} not found")
+
+  for j in range(i + 1, len(axes)):
+    fig.delaxes(axes[j])
+  
+  plt.tight_layout()
+  plt.savefig(os.path.join(out_dir, 'incorrect_samples.png'), dpi=300)
+  plt.show()
