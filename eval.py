@@ -15,10 +15,14 @@ from utils.viz import *
 
 device ='cuda' if torch.cuda.is_available() else 'cpu'
 
-@hydra.main(config_path="config/", config_name="config", version_base="1.1")
+@hydra.main(config_path="config/", config_name="config_gcloud", version_base="1.1")
 def main(cfg):
   csv_dir = cfg.evaluate.csv_dir
   out_dir = cfg.evaluate.out_dir
+
+  # create out_dir
+  if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
 
   # best_threshold = plot_roc_curve(csv_dir, out_dir) # TODO: from val
   # print(f"Best threshold: {best_threshold:.4f}")
