@@ -13,12 +13,12 @@ import pandas as pd
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 import os
-# from skorch import NeuralNetClassifier
-# from skorch.helper import predefined_split
-# from skorch.callbacks import Checkpoint
 
 from utils.dataset import TrainDataset, get_transforms, collate_transforms
 device ='cuda' if torch.cuda.is_available() else 'cpu'
+
+# check cuda availability
+print("Device: ", device)
 
 def get_outputs(model, dl, criterion=None):
   scores, labels, losses = [], [], []
@@ -42,7 +42,7 @@ def get_outputs(model, dl, criterion=None):
   
   return scores, labels, losses
 
-@hydra.main(config_path="config/", config_name="config", version_base="1.1")
+@hydra.main(config_path="config/", config_name="config_gcloud", version_base="1.1")
 def main(cfg):
   if cfg.wandb.enabled:
     config = OmegaConf.to_container(
