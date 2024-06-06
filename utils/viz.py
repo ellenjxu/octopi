@@ -11,6 +11,8 @@ from sklearn.metrics import roc_curve, auc
 
 FP_target = 5
 
+cm = 1/2.54 
+
 labels_df = pd.read_csv('utils/label.csv')
 def _get_label(file_name): # helper fxn for getting label
   name = file_name[:-4]
@@ -113,10 +115,19 @@ def calculate_fnr(csv_dir, threshold_path):
         
   return fnr_list
 
-def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5):
+def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5, manuscript = False):
   """
   Plots the ratio matrix of FNR given FPR and saves it to a file.
   """
+  if manuscript:
+    line_width = 0.1
+    text_size=6 
+    tick_size=5
+    fig, ax = plt.subplots(figsize=(5.8*cm, 4.0*cm))
+  else:
+    line_width = 0.5
+    fig, ax = plt.subplots()
+
   threshold_path = os.path.join(out_dir, 'thresholds.csv')
   out_path = os.path.join(out_dir, 'ratio_matrix.pdf')
 
@@ -124,8 +135,7 @@ def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5):
   ratio_df = pd.DataFrame(fnr_list, columns=['Pos File', 'Threshold File', 'Ratio'])
   matrix_df = ratio_df.pivot(index='Threshold File', columns='Pos File', values='Ratio')
 
-  cm = 1/2.54 
-  fig, ax = plt.subplots(figsize=(5.8*cm, 4.0*cm))
+  
   c = ax.pcolor(matrix_df, cmap='Blues', vmin=0, vmax=1)
 
   ax.set_xticks(np.arange(matrix_df.shape[1]), minor=False)
@@ -133,7 +143,7 @@ def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5):
   plt.xticks(rotation=45)
 
   color_bar = fig.colorbar(c, ax=ax)
-  color_bar.ax.tick_params(labelsize=tick_size, width=0.1)
+  color_bar.ax.tick_params(labelsize=tick_size, width=line_width)
   color_bar.set_label('FNR at FP = 5/µl', fontsize=text_size)
 
   plt.xlabel('Positive slides', fontsize=text_size)
@@ -175,10 +185,22 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
   confusion_matrix = calculate_confusion_matrix(csv_dir, threshold)
   confusion_df = pd.DataFrame(confusion_matrix, columns=['file_name', 'TP', 'FP', 'TN', 'FN'])
   confusion_df.set_index('file_name', inplace=True)
-  confusion_df = confusion_df.div(confusion_df.sum(axis=1), axis=0) # normalize
+  #confusion_df = confusion_df.div(confusion_df.sum(axis=1), axis=0) # normalize
 
-  plt.figure(figsize=(10, 6))
-  sns.heatmap(confusion_df, annot=True, fmt=".4f", cmap="YlGnBu")
+  plt.figure(figsize=(8,20))
+
+  sns.heatmap(confusion_df, annot=True, fmt="d", cmap="YlGnBu")
+   
+  plt.title('Confusion Matrix for Each Patient')
+  plt.xlabel('Metrics')
+  plt.ylabel('Patient Label')
+  plt.xticks(rotation=45, ha='right')
+
+  plt.tight_layout()
+  plt.savefig(os.path.join(out_dir, 'confusion_matrix.png'), dpi=300)
+  plt.show()
+
+
   # colors = {'TP': 'Blues', 'FP': 'Reds', 'TN': 'Blues', 'FN': 'Reds'}
     
   # cmap = {
@@ -193,15 +215,6 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
   #   ax = sns.heatmap(confusion_df[[column]], annot=True, fmt=".2f", cmap=sns.color_palette(colors[column], as_cmap=True),
   #                        cbar=i == 0, linewidths=.5, linecolor='black', yticklabels=i == 0)
   #   ax.collections[0].colorbar.set_label(column)
-   
-  plt.title('Confusion Matrix for Each Patient')
-  plt.xlabel('Metrics')
-  plt.ylabel('Patient Label')
-  plt.xticks(rotation=45, ha='right')
-
-  plt.tight_layout()
-  plt.savefig(os.path.join(out_dir, 'confusion_matrix.png'), dpi=300)
-  plt.show()
 
 def calculate_roc(csv_dir):
   """
