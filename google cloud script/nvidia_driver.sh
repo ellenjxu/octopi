@@ -34,4 +34,4 @@ rm -rf ~/miniconda3/miniconda.sh
 conda create --name pt23 python=3.8
 conda activate pt23
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
-pip install hydra-core wandb omegaconf torch pandas tqdm scikit-learn
+pip install hydra-core wandb omegaconf torch pandas tqdm scikit-learn Flask dash opencv-python flask_httpauth

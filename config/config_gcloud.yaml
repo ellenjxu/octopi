@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - model: resnet
+  - model: tinynn
 
 train:
   data_dir: "/mnt/disks/whole/init-train/"
@@ -15,21 +15,22 @@ train:
 
 test:
   data_dir_pos: "/mnt/disks/whole/parasite-slides-cleaned/"
-  data_dir_neg: "/mnt/disks/whole/whole-slides/"
+  data_dir_whole: "/mnt/disks/whole/whole-slides/"
+  data_txt_neg: "utils/neg.txt"
   batch_size: 32
   num_workers: 4
   out_dir: "out/"
 
 evaluate:
-  model_dir: "out/resnet_baseline_2"
+  model_dir: "out/tinynn_init"
   csv_dir: ${evaluate.model_dir}/csv
   out_dir: ${evaluate.model_dir}/thresholds
 
 wandb:
   enabled: True
   project: "octopi"
-  job_type: "train_resnet"
-  name: "resnet_baseline"
+  job_type: "train_tinynn"
+  name: "tinynn_init"
 
 hydra:
   run:
