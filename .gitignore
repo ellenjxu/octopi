@@ -15,3 +15,4 @@ wandb/
 # out/
 data/
 inference_code/
+out/
