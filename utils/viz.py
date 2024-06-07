@@ -115,7 +115,7 @@ def calculate_fnr(csv_dir, threshold_path):
         
   return fnr_list
 
-def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5, manuscript = False):
+def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=4, manuscript = False):
   """
   Plots the ratio matrix of FNR given FPR and saves it to a file.
   """
@@ -141,6 +141,11 @@ def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=5, manuscript = F
   ax.set_xticks(np.arange(matrix_df.shape[1]), minor=False)
   ax.set_xticklabels([col[:7] for col in matrix_df.columns], minor=False, fontsize=tick_size)
   plt.xticks(rotation=45)
+
+  # get names for the negative files
+  neg_names = [_get_label(file_name) for file_name in neg_files]
+  ax.set_yticks(np.arange(matrix_df.shape[0]), minor=False)
+  ax.set_yticklabels([_get_label(file_name) for file_name in matrix_df.index], minor=False, fontsize=tick_size)
 
   color_bar = fig.colorbar(c, ax=ax)
   color_bar.ax.tick_params(labelsize=tick_size, width=line_width)
