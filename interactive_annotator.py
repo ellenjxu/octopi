@@ -20,7 +20,7 @@ NPY_FOLDER_PATH = '/mnt/disks/whole/whole-slides/'
 SCORES_FOLDER_PATH = '/home/heguanglin/octopi/out/tinynn_init/csv'
 
 # Number of items per page
-ITEMS_PER_PAGE = 100
+ITEMS_PER_PAGE = 250
 BAR_PLOT_HEIGHT = 700
 
 # Initialize the Flask app
@@ -65,17 +65,28 @@ def numpy_array_to_image_string(frame):
 # Get the list of slides from the scores folder
 slide_files = [f.replace('.csv', '') for f in os.listdir(SCORES_FOLDER_PATH) if f.endswith('.csv')]
 
+labels_df = pd.read_csv('utils/label.csv')
+def _get_label(file_name): # helper fxn for getting label
+  name = file_name
+  new_label_row = labels_df[labels_df['name'] == name]
+  if not new_label_row.empty:
+    return new_label_row['new label'].values[0]
+  else:
+    return name
+  
+labels=[_get_label(slide) for slide in slide_files]
+
 # App layout
 app.layout = html.Div([
     html.Div([
         html.Label('Select Slide:', style={'marginRight': '10px'}),
         dcc.Dropdown(
             id='slide-dropdown',
-            options=[{'label': slide, 'value': slide} for slide in slide_files],
+            options=[{'label': label, 'value': slide} for label, slide in zip(labels, slide_files)],
             style={'width': '300px'},
             clearable=False
         )
-    ], style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'marginBottom': '20px'}),
+    ], style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center'}),
     html.Div(id='slide-info', style={'textAlign': 'center'}),
     html.Div([
         "Page: ",
@@ -87,17 +98,17 @@ app.layout = html.Div([
             {'label': 'Ascending', 'value': 'asc'},
             {'label': 'Descending', 'value': 'desc'},
         ],
-        value='asc'
+        value='desc'
     ),
     html.Div([
         html.Label('Create Class:', style={'marginRight': '10px'}),
         dcc.Input(id='class-name', type='text', placeholder='Class Name', style={'marginRight': '10px'}),
-        dcc.Input(id='class-color', type='text', placeholder='#ff0000', style={'marginRight': '10px'}),
+        dcc.Input(id='class-color', type='text', placeholder='green', style={'marginRight': '10px'}),
         html.Button('Add Class', id='add-class-btn', n_clicks=0)
-    ],  style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'marginBottom': '20px'}),
-    html.Div(id='class-panel', style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'marginBottom': '20px'}),
-    html.Button('Annotate', id='annotate-btn', n_clicks=0, style={'marginBottom': '20px'}),
-    html.Button('Export Annotations', id='export-btn', n_clicks=0),
+    ],  style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center'}),
+    html.Div(id='class-panel', style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center'}),
+    html.Button('Annotate', id='annotate-btn',style={'height':'50px', 'width':'100px','marginRight': '20px'}),
+    html.Button('Export Annotations', id='export-btn', n_clicks=0,style={'height':'50px', 'width':'100px'}),
     dcc.Download(id='download-dataframe-csv'),
     html.Div(id='image-grid')
 ])
@@ -183,7 +194,7 @@ def update_images(slide, page_number, sort_order, n_clicks, current_grid, class_
         number_html = html.Div(f"[{i}]", style={'textAlign': 'center', 'color': 'gray'})
         image_elements.append(html.Div([number_html, image_html, score_html], style={'margin': '10px', 'display': 'inline-block'}))
 
-    return f"Sample: {slide}", html.Div(image_elements)
+    return f"Slide {_get_label(slide)}: {slide}", html.Div(image_elements)
 
 # Callback to select image and update style
 @app.callback(
@@ -207,7 +218,7 @@ def select_image(n_clicks, styles):
         styles[index-1]['box-shadow'] = 'none'
     else:
         selected_indices.append(index)
-        styles[index-1]['box-shadow'] = '0 0 5px 5px brown'
+        styles[index-1]['box-shadow'] = '0 0 10px 10px grey'
     return styles
 # Callback to reset page number when a new slide is selected
 @app.callback(
@@ -248,12 +259,12 @@ def add_class(n_clicks, class_name, class_color, current_panel):
             value=classes[0]['color'],
             style={'width': '400px'}
         )
-    ]),
+    ], style={'marginRight': '20px'}), 
     html.Div(
-        [html.Span(f"{c['name']} ", style={'color': c['color'], 'marginRight': '10px'}) for c in classes],
-        style={'marginTop': '10px'}
-    )
-    ]
+        [html.Span(f"{c['name']} ", style={'color': c['color'], 'marginRight': '10px', 'border': '1px solid', 'padding': '5px'}) for c in classes],
+        style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center'}
+    )]
+    
     return class_elements
 
 # Callback to export annotations
