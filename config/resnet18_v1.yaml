@@ -1,9 +1,9 @@
 defaults:
   - _self_
-  - model: tinynn # this is for the model group
+  - model: resnet # this is for the model group
   - override hydra/launcher: joblib
 
-model_name: "tinynn"
+model_name: "resnet18"
 
 wandb:
   enabled: True
@@ -17,7 +17,7 @@ hydra:
 
 
 train:
-  data_dir: "/mnt/disks/whole/init-train/"
+  data_dir: "/home/heguanglin/data/061724/init-train/"
   lr: 0.001
   batch_size: 32
   num_workers: 1
@@ -28,7 +28,7 @@ train:
   out_dir: "out/${model_name}/"
 
 test:
-  data_dir_pos: "/mnt/disks/whole/parasite-slides-cleaned/"
+  data_dir_pos: "/home/heguanglin/data/061724/parasite-slides-cleaned/"
   data_dir_whole: "/mnt/disks/whole/whole-slides/"
   data_txt_neg: "utils/neg.txt"
   batch_size: 4096

@@ -16,3 +16,5 @@ wandb/
 data/
 inference_code/
 out/
+frontend/
+backend/

@@ -11,18 +11,23 @@ class TrainDataset(Dataset):
   """
   def __init__(self, data_dir, transform=None):
     self.files = list(Path(data_dir).rglob('*.npy'))
-    #self.images = np.concatenate([np.load(f) for f in self.files])
-    #self.labels = np.concatenate([np.ones(len(self.files)) if "pos" in f.parent.name else np.zeros(len(self.files)) for f in self.files])
     
+
+    # check how many files are in the directory
+    # print("Number of files in the directory: ", len(self.files), "first 5 files: ", self.files[:5])
+
     self.images = []
     self.labels = []
     for f in self.files:
         data = np.load(f)
         self.images.append(data)
         self.labels.append(np.ones(len(data)) if "pos" in f.parent.name else np.zeros(len(data)))
+        print(f, len(data), self.labels[-1][-1])
+
     self.images = np.concatenate(self.images)
     self.labels = np.concatenate(self.labels)
     self.transform = transform
+
     
   def __len__(self):
     return len(self.images)

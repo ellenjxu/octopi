@@ -73,6 +73,9 @@ def main(cfg):
   criterion = nn.CrossEntropyLoss(weight=torch.tensor(cfg.train.class_weights, device=device))
   optimizer = torch.optim.Adam(model.parameters(), lr=cfg.train.lr)
 
+  best_val_loss = float("inf")
+  best_model = None
+
   for epoch in range(cfg.train.epochs):
     print(f"epoch: {epoch}")
     model.train()
@@ -99,14 +102,21 @@ def main(cfg):
     if cfg.wandb.enabled:
       wandb.log({"train/loss": avg_train_loss, "val/loss": avg_val_loss, "val/acc": avg_val_acc})
 
+    if avg_val_loss < best_val_loss:
+      best_val_loss = avg_val_loss
+      best_model = model.state_dict()
+      print("best model updated at epoch: ", epoch)
+
   if cfg.train.save_model:
     out_dir = os.path.join(cfg.train.out_dir, cfg.wandb.name)
     os.makedirs(out_dir, exist_ok=True)
     torch.save(model.state_dict(), os.path.join(out_dir, "model.pt"))
+    torch.save(best_model, os.path.join(out_dir, "best.pt"))
 
   if cfg.wandb.enabled:
     artifact = wandb.Artifact(f"{cfg.wandb.name}", type="model")
     artifact.add_file(os.path.join(out_dir, "model.pt"))
+    artifact.add_file(os.path.join(out_dir, "best.pt"))
     run.log_artifact(artifact)
     run.finish()
 
