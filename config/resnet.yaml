@@ -3,17 +3,15 @@ defaults:
   - model: resnet # this is for the model group
   - override hydra/launcher: joblib
 
-model_name: "resnet18"
-
 wandb:
   enabled: True
   project: "octopi"
-  job_type: "train_${model_name}"
+  job_type: "train_${model.model}"
   name: "run0"
 
 hydra:
   run:
-    dir: "."
+    dir: "out/${model.model}/${wandb.name}"
 
 
 train:
@@ -25,7 +23,7 @@ train:
   class_weights: [1.0, 1.0]
   epochs: 10
   save_model: True
-  out_dir: "out/${model_name}/"
+  out_dir: "out/${model.model}/"
 
 test:
   data_dir_pos: "/home/heguanglin/data/061724/parasite-slides-cleaned/"
@@ -33,10 +31,11 @@ test:
   data_txt_neg: "utils/neg.txt"
   batch_size: 4096
   num_workers: 4
-  out_dir: "out/${model_name}/"
+  out_dir: "out/${model.model}/"
+  cp_name: "best.pt"
 
 evaluate:
-  model_dir: "out/${model_name}/${wandb.name}"
+  model_dir: "out/${model.model}/${wandb.name}"
   csv_dir: ${evaluate.model_dir}/csv
-  out_dir: ${evaluate.model_dir}/thresholds
+  out_dir: ${evaluate.model_dir}/plots
 
