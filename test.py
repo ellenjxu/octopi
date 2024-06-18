@@ -17,7 +17,7 @@ device ='cuda' if torch.cuda.is_available() else 'cpu'
 @hydra.main(config_path="config/", config_name="config_gcloud", version_base="1.1")
 def main(cfg):
   model = hydra.utils.instantiate(cfg.model).to(device)
-  model_path = os.path.join(cfg.train.out_dir, cfg.wandb.name, "model.pt")
+  model_path = os.path.join(cfg.train.out_dir, cfg.wandb.name, cfg.test.cp_name)
   model.load_state_dict(torch.load(model_path))
   model.eval()
   

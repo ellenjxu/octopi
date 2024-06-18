@@ -12,9 +12,6 @@ wandb/
 *.pth
 *.pt
 
-# out/
-data/
-inference_code/
+multirun/
 out/
-frontend/
-backend/
+

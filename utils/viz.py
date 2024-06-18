@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import roc_curve, auc
+from tqdm import tqdm
 
 FP_target = 5
 
@@ -61,18 +62,28 @@ def plot_threshold(csv_dir, out_dir):
   """
   thresholds = calculate_threshold(csv_dir)
   thresholds_df = pd.DataFrame(thresholds, columns=['file_name', 'threshold'])
+  # use _get_label to get the label for each file
+  thresholds_df['label'] = thresholds_df['file_name'].apply(_get_label)
   thresholds_df.to_csv(os.path.join(out_dir, 'thresholds.csv'), index=False)
   thresholds_df_sorted = thresholds_df.sort_values(by='threshold')
+
+  df = thresholds_df
   
-  plt.figure(figsize=(10,8))
-  x_labels = range(1, len(thresholds_df_sorted) + 1)
-  plt.bar(x_labels, thresholds_df_sorted['threshold'])
-  plt.axhline(y=0.98, color='r', linestyle='--',label='0.98')
+  plt.figure(figsize=(20,10))
+  #x_labels = range(1, len(thresholds_df_sorted) + 1)
+  plt.bar(df['label'], df['threshold'])
+  # put label on top of each bin
+  for i, threshold, label in zip(range(len(df)), df['threshold'], df['label']):
+    plt.text(i, threshold, "{}".format(label), ha='center', va='bottom')
+
+  ninefive_pertile = df['threshold'].quantile(0.95)
+  line = plt.axhline(y=ninefive_pertile, color='r', linestyle='--',label='95% Pertile: {:.2f}'.format(ninefive_pertile))
+  plt.legend(handles=[line])
 
   plt.title('Thresholds by File')
   plt.xlabel('File Name')
   plt.ylabel('Threshold')
-  plt.xticks(rotation=45, ha='right')
+  #plt.xticks(rotation=45, ha='right')
 
   plt.tight_layout() 
   plt.savefig(os.path.join(out_dir, 'thresholds_by_file.png'), dpi=300)
@@ -272,3 +283,84 @@ def plot_roc_curve(csv_dir, out_dir):
   plt.show()
 
   return best_threshold
+
+def merge(model,ver1,ver2):
+
+  dir1 = f"out/{model}/{ver1}/csv"
+  dir2 = f"out/{model}/{ver2}/csv"
+  save_dir = f"out/{model}/{ver1}_{ver2}/csv"
+
+  # create a new directory, create the parental directory if it doesn't exist
+  if not os.path.exists(save_dir):
+      os.makedirs(save_dir)
+
+  # for each of the csv files, read them and merge them
+  # get all the csv files in the directory
+  files1 = os.listdir(dir1)
+  files2 = os.listdir(dir2)
+
+  for file in tqdm(files1):
+      df1 = pd.read_csv(f"{dir1}/{file}")
+      df2 = pd.read_csv(f"{dir2}/{file}")
+
+      # now compare the each row of the two dataframes, preserve the row with a lower "parasite output"
+      indices = df1["parasite output"] > df2["parasite output"]
+      df1.loc[indices] = df2.loc[indices]
+
+      # save the new dataframe
+      df1.to_csv(f"{save_dir}/{file}", index=False)
+
+  # based on plot_threshold, plot a overlay bar plot of two versions
+  thresholds1 = calculate_threshold(dir1)
+  thresholds2 = calculate_threshold(dir2)
+  threshold_merged = calculate_threshold(save_dir)
+
+  thresholds1_df = pd.DataFrame(thresholds1, columns=['file_name', 'threshold'])
+  thresholds2_df = pd.DataFrame(thresholds2, columns=['file_name', 'threshold'])
+  thresholds_merged_df = pd.DataFrame(threshold_merged, columns=['file_name', 'threshold'])
+
+  thresholds1_df['label'] = thresholds1_df['file_name'].apply(_get_label)
+  thresholds2_df['label'] = thresholds2_df['file_name'].apply(_get_label)
+  thresholds_merged_df['label'] = thresholds_merged_df['file_name'].apply(_get_label)
+
+  # make sure that the order is the same
+  assert (thresholds1_df['label'] == thresholds2_df['label']).all()
+  assert (thresholds1_df['label'] == thresholds_merged_df['label']).all()
+  assert (thresholds2_df['label'] == thresholds_merged_df['label']).all()
+
+  df1 = thresholds1_df
+  df2 = thresholds2_df
+  df_merged = thresholds_merged_df
+
+  x = np.arange(len(df1))
+
+  fig, ax = plt.subplots(figsize=(20,10))
+  rects1 = ax.bar(x, df1['threshold'], label=ver1,alpha=0.3,color='b')
+  rects2 = ax.bar(x, df2['threshold'], label=ver2,alpha=0.3,color='r')
+
+  ax.set_xticks(x)
+  # show the label on top of each bar
+  for i, thr_merged, label in zip(range(len(df1)), df_merged['threshold'], df1['label']):
+    ax.text(i, thr_merged, "{}".format(label), ha='center', va='bottom')
+
+  ninefive_pertile = df_merged['threshold'].quantile(0.95)
+  line = ax.axhline(y=ninefive_pertile, color='r', linestyle='--',label='95% Pertile: {:.2f}'.format(ninefive_pertile))
+  fig.legend(handles=[line,rects1,rects2])
+
+  fig.suptitle('Thresholds by File')
+  ax.set_xlabel('File Name')
+  ax.set_ylabel('Threshold')
+
+  plot_dir = os.path.join("out/{}/{}_{}/plots".format(model,ver1,ver2))
+
+  # create a new directory, create the parental directory if it doesn't exist
+  if not os.path.exists(plot_dir):
+      os.makedirs(plot_dir)
+
+  fig.savefig(os.path.join(plot_dir, 'merged_bar_plot.png'), dpi=300)
+
+  # also plot the threshold 
+  plot_threshold(save_dir, plot_dir)
+  plot_ratio_matrix(save_dir, plot_dir)
+
+  return
