@@ -31,7 +31,7 @@ def main(cfg):
 
   plot_threshold(csv_dir, out_dir)
   plot_ratio_matrix(csv_dir, out_dir) # TODO: threshold
-  plot_confusion_matrix(csv_dir, out_dir, threshold=0.001)
+  #plot_confusion_matrix(csv_dir, out_dir, threshold=0.001)
 
 if __name__ == "__main__":
   main()
