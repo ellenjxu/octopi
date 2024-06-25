@@ -1,5 +1,5 @@
 CONFIG="resnet" 
-WANDB_NAME="retrain_v5" 
+WANDB_NAME="h7h28_v4" 
 MODEL_NAME="resnet18"
 
 python3 train.py --config-name=$CONFIG "wandb.name=$WANDB_NAME" "model.model=$MODEL_NAME" 

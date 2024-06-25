@@ -23,4 +23,4 @@ class ResNet(nn.Module):
     x = self.base_model(x)
     features = x.view(x.size(0), -1)
     x = self.fc(features)
-    return x
+    return x, features

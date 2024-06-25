@@ -21,13 +21,13 @@ device ='cuda' if torch.cuda.is_available() else 'cpu'
 print("Device: ", device)
 
 def get_outputs(model, dl, criterion=None):
-  scores, labels, losses = [], [], []
+  scores, labels, losses ,features = [], [], [], []
   model = model.eval()
 
   with torch.no_grad():
     for images, label in tqdm(dl):
       images, label = images.to(device), label.to(device)
-      pred = model(images)
+      pred,feature = model(images)
 
       if criterion is not None:
         loss = criterion(pred, label)
@@ -36,11 +36,14 @@ def get_outputs(model, dl, criterion=None):
       probs = torch.softmax(pred, dim=1) # normalized
       scores.append(probs.cpu())
       labels.append(label.cpu())
+      features.append(feature.cpu())
   
   scores = torch.cat(scores, dim=0)
   labels = torch.cat(labels, dim=0)
+  features = torch.cat(features, dim=0)
   
-  return scores, labels, losses
+  return scores, labels, losses, features
+
 
 @hydra.main(config_path="config/", config_name="config_gcloud", version_base="1.1")
 def main(cfg):
@@ -83,7 +86,7 @@ def main(cfg):
     for images, labels in tqdm(train_loader):
       images, labels = images.to(device), labels.to(device)
       optimizer.zero_grad()
-      outputs = model(images)
+      outputs, _ = model(images)
       loss = criterion(outputs, labels)
       loss.backward()
       optimizer.step()
@@ -94,7 +97,7 @@ def main(cfg):
     
     avg_train_loss = total_loss / len(train_loader)
 
-    preds, labels, losses = get_outputs(model, val_loader, criterion)
+    preds, labels, losses,_ = get_outputs(model, val_loader, criterion)
     avg_val_loss = torch.stack(losses).mean()
     avg_val_acc = accuracy_score(labels.numpy(), preds.argmax(dim=1).numpy())
 

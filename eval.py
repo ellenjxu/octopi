@@ -20,18 +20,18 @@ def main(cfg):
   csv_dir = cfg.evaluate.csv_dir
   out_dir = cfg.evaluate.out_dir
 
+  FP_target = 30
+
   # create out_dir
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
-  # best_threshold = plot_roc_curve(csv_dir, out_dir) # TODO: from val
-  # print(f"Best threshold: {best_threshold:.4f}")
-  # fpr_list, fnr_list = calculate_fpr_fnr(csv_dir, threshold=best_threshold)
-  # print(f"FPR: {np.mean(fpr_list):.4f}, FNR: {np.mean(fnr_list):.4f}")
-
-  plot_threshold(csv_dir, out_dir)
-  plot_ratio_matrix(csv_dir, out_dir) # TODO: threshold
-  #plot_confusion_matrix(csv_dir, out_dir, threshold=0.001)
+  thre_start = plot_threshold(csv_dir, out_dir,FP_target=FP_target)
+  #plot_fp_fnr(csv_dir, out_dir, thr_start=thre_start)
+  #plot_ratio_matrix(csv_dir, out_dir, thre_start)
+  #fpr_list, fnr_list, _ = calculate_fpr_fnr(csv_dir, threshold=thre_start)
+  TPR, FPR, TNR, FNR = plot_confusion_matrix(csv_dir, out_dir, thre_start)
+  plot_roc_curve(csv_dir, out_dir,fpr_end = 0.0001, fpr_cutoff = FPR, tpr_cutoff = TPR)
 
 if __name__ == "__main__":
   main()

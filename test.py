@@ -18,6 +18,7 @@ device ='cuda' if torch.cuda.is_available() else 'cpu'
 def main(cfg):
   model = hydra.utils.instantiate(cfg.model).to(device)
   model_path = os.path.join(cfg.train.out_dir, cfg.wandb.name, cfg.test.cp_name)
+  print(os.getcwd())
   model.load_state_dict(torch.load(model_path))
   model.eval()
   
@@ -40,7 +41,7 @@ def main(cfg):
     test_ds = SinglePatientDataset(filepath)
     test_loader = DataLoader(test_ds, batch_size=cfg.test.batch_size, shuffle=False, num_workers=cfg.test.num_workers)
 
-    probs, labels, _ = get_outputs(model, test_loader)
+    probs, labels, _ ,_= get_outputs(model, test_loader)
     labels = labels.numpy()
 
     output_df = pd.DataFrame({
