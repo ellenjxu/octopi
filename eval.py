@@ -20,17 +20,16 @@ def main(cfg):
   csv_dir = cfg.evaluate.csv_dir
   out_dir = cfg.evaluate.out_dir
 
-  FP_target = 30
+  FP_target = 5
 
   # create out_dir
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
   thre_start = plot_threshold(csv_dir, out_dir,FP_target=FP_target)
-  #plot_fp_fnr(csv_dir, out_dir, thr_start=thre_start)
-  #plot_ratio_matrix(csv_dir, out_dir, thre_start)
-  #fpr_list, fnr_list, _ = calculate_fpr_fnr(csv_dir, threshold=thre_start)
-  TPR, FPR, TNR, FNR = plot_confusion_matrix(csv_dir, out_dir, thre_start)
+  plot_fp_fnr(csv_dir, out_dir, thr_start=thre_start)
+  plot_ratio_matrix(csv_dir, out_dir, FP_target)
+  TPR, FPR, TNR, FNR = plot_confusion_matrix(csv_dir, out_dir, threshold = thre_start)
   plot_roc_curve(csv_dir, out_dir,fpr_end = 0.0001, fpr_cutoff = FPR, tpr_cutoff = TPR)
 
 if __name__ == "__main__":

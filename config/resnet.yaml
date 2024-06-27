@@ -11,11 +11,15 @@ wandb:
 
 hydra:
   run:
-    dir: "out/${model.model}/${wandb.name}"
+    dir: "./"
+  job_logging:
+    root:
+      handlers: null
 
+out: "out"
 
 train:
-  data_dir: "/home/heguanglin/data/061724/init-train/"
+  data_dir: "/home/heguanglin/data/061924/init-train/"
   lr: 0.001
   batch_size: 32
   num_workers: 1
@@ -23,19 +27,21 @@ train:
   class_weights: [1.0, 1.0]
   epochs: 10
   save_model: True
-  out_dir: "out/${model.model}/"
+  out_dir: "${out}/${model.model}/"
 
 test:
-  data_dir_pos: "/home/heguanglin/data/061724/parasite-slides-cleaned/"
+  data_dir_pos: "/home/heguanglin/data/061924/parasite-slides-cleaned/"
   data_dir_whole: "/mnt/disks/whole/whole-slides/"
   data_txt_neg: "utils/neg.txt"
-  batch_size: 4096
+  batch_size: 2048
   num_workers: 4
-  out_dir: "out/${model.model}/"
+  out_dir: "${out}/${model.model}/"
   cp_name: "best.pt"
+  whole: True
+  save_features: True
 
 evaluate:
-  model_dir: "out/${model.model}/${wandb.name}"
+  model_dir: "${out}/${model.model}/${wandb.name}"
   csv_dir: ${evaluate.model_dir}/csv
   out_dir: ${evaluate.model_dir}/plots
 
