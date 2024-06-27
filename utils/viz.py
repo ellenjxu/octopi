@@ -13,6 +13,24 @@ from sklearn.metrics import ConfusionMatrixDisplay
 
 cm = 1/2.54 
 
+# Global variable to control figure size
+MANUSCRIPT_MODE = True
+
+# Helper function to set figure properties based on mode
+def set_figure_properties(fig, ax, fontsize, linewidth):
+    if MANUSCRIPT_MODE:
+        ax.tick_params(width=linewidth, length=2*linewidth)
+        for spine in ax.spines.values():
+            spine.set_linewidth(linewidth)
+        plt.rcParams['font.size'] = fontsize
+        plt.rcParams['axes.linewidth'] = linewidth
+    else:
+        # Default settings for better visibility
+        plt.rcParams['font.size'] = 12
+        plt.rcParams['axes.linewidth'] = 1.5
+        ax.tick_params(width=1.5, length=6)
+        # tight layout
+
 labels_df = pd.read_csv('utils/label.csv')
 def _get_label(file_name): # helper fxn for getting label
   name = file_name[:-4]
@@ -66,33 +84,41 @@ def plot_threshold(csv_dir, out_dir,FP_target=5):
   """
   plots threshold for each neg csv
   """
+
+  if MANUSCRIPT_MODE:
+    figsize = (5.8*cm, 4.0*cm)  # in cm
+    fontsize = 6
+    linewidth = 0.1
+  else:
+    figsize = (12, 8)  # in inches
+    fontsize = 12
+    linewidth = 1.5
+
+  fig, ax = plt.subplots(figsize=(figsize[0], figsize[1]))
+  set_figure_properties(fig, ax, fontsize, linewidth)
+
   thresholds = calculate_threshold(csv_dir,FP_target)
   thresholds_df = pd.DataFrame(thresholds, columns=['file_name', 'threshold'])
   # use _get_label to get the label for each file
   thresholds_df['label'] = thresholds_df['file_name'].apply(_get_label)
   thresholds_df.to_csv(os.path.join(out_dir, 'thresholds.csv'), index=False)
-  thresholds_df_sorted = thresholds_df.sort_values(by='threshold')
 
   df = thresholds_df
   
-  plt.figure(figsize=(20,10))
-  #x_labels = range(1, len(thresholds_df_sorted) + 1)
-  plt.bar(range(len(df['threshold'])), df['threshold'])
-  # put label on top of each bin
+  ax.bar(range(len(df['threshold'])), df['threshold'])
   for i, threshold, label in zip(range(len(df)), df['threshold'], df['label']):
-    plt.text(i, threshold, "{}".format(label), ha='center', va='bottom')
+      ax.text(i, threshold, f"{label}", ha='center', va='bottom', fontsize=fontsize)
 
   ninefive_pertile = df['threshold'].quantile(0.95)
-  line = plt.axhline(y=ninefive_pertile, color='r', linestyle='--',label='95% Pertile: {:.2f}'.format(ninefive_pertile))
-  plt.legend(handles=[line])
+  line = ax.axhline(y=ninefive_pertile, color='r', linestyle='--', label=f'95% Pertile: {ninefive_pertile:.2f}')
+  ax.legend(handles=[line], fontsize=fontsize)
 
-  plt.title('Thresholds by File')
-  plt.xlabel('File Name')
-  plt.ylabel('Threshold')
-  #plt.xticks(rotation=45, ha='right')
+  ax.set_title('Thresholds by File', fontsize=fontsize+2)
+  ax.set_xlabel('File Name', fontsize=fontsize)
+  ax.set_ylabel('Threshold', fontsize=fontsize)
 
-  plt.tight_layout() 
-  plt.savefig(os.path.join(out_dir, 'thresholds_by_file.png'), dpi=300)
+  plt.tight_layout()
+  plt.savefig(os.path.join(out_dir, 'thresholds_by_file.pdf'), dpi=300)
 
   return ninefive_pertile
 
@@ -121,10 +147,31 @@ def calculate_fpr_fnr(csv_dir, threshold=0.5):
 
   return fpr_list, fnr_list, fps
 
-def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05, text_size=6, tick_size=4, manuscript = False):
+def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
   '''
   Plot the FNR and FPs per 5m RBC in one graph
   '''
+
+  if MANUSCRIPT_MODE:
+    figsize = (7, 4)  # in cm
+    fontsize = 6 # for the labels (text fontsize)
+    ticksize = 5 # for the tick's font size
+    linewidth = 1 # the plot line width
+    markersize = 10 # the size of the markers
+    axislinewidth = 0.5 # the axis line width
+  else:
+    figsize = (30, 20) 
+    fontsize = 12
+    linewidth = 1.5
+  
+  fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+  # plot two y-axis, left for FPs per 5M RBC, right for FNR
+  ax2 = ax.twinx()
+  set_figure_properties(fig, ax, fontsize, axislinewidth)
+  set_figure_properties(fig, ax2, fontsize, axislinewidth)
+  
+  blue = '#3182BD'
+  red = '#F03B20'
 
   # store all the df in the buffer
   dfs = []
@@ -140,10 +187,11 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05, text_size=6, tick_size=4, manu
   
   fps_slides = []
   fnr_slides = []
+  fpr_slides = []
   for thr in tqdm(thrs):
     #fpr_list, _, fps = calculate_fpr_fnr(csv_dir, thr)
 
-    fnr_list, fps ,fpr = [], [] , [] 
+    fnr_list, fps ,fpr_list = [], [] , [] 
     for file_name, df in zip(os.listdir(csv_dir), dfs):
       total = len(df)
       if file_name in neg_files:
@@ -152,17 +200,21 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05, text_size=6, tick_size=4, manu
         #print(cell_count)
         fps.append(np.sum(df['parasite output'] >= thr) / cell_count * 5e6)
         fpr = np.sum(df['parasite output'] >= thr) / total
+        fpr_list.append(fpr)
+        
       else:
         #print(np.sum(df['parasite output'] < thr))
         fnr = np.sum(df['parasite output'] < thr) /total
         fnr_list.append(fnr)
 
+    fpr_slides.append((fpr_list))
     fnr_slides.append((fnr_list))
     fps_slides.append((fps))
 
   # reshape the data
   fnr_slides = np.array(fnr_slides).transpose()
   fps_slides = np.array(fps_slides).transpose()
+  fpr_slides = np.array(fpr_slides).transpose()
   
   
   # save the data as csv fith slide name and threshold
@@ -174,47 +226,36 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05, text_size=6, tick_size=4, manu
   fp_df['file_name'] = [file_name for file_name in os.listdir(csv_dir) if file_name in neg_files]
   fp_df.to_csv(os.path.join(out_dir, 'fp.csv'), index=False)
 
-  fpr_df = pd.DataFrame(fpr, columns=[f'thr_{thr}' for thr in thrs])
-  fpr_df['file_name'] = [file_name for file_name in os.listdir(csv_dir) if file_name in neg_files]
+  fpr_df = pd.DataFrame(fpr_slides, columns=[f'thr_{thr}' for thr in thrs])
+  fpr_df['file_name'] = [file_name for file_name in os.listdir(csv_dir) if file_name  in neg_files]
   fpr_df.to_csv(os.path.join(out_dir, 'fpr.csv'), index=False)
-  
-  if manuscript:
-    line_width = 0.1
-    text_size=6 
-    tick_size=5
-    fig, ax = plt.subplots(figsize=(5.8*cm, 4.0*cm))
-  else:
-    line_width = 0.5
-    fig, ax = plt.subplots()
-
-    # plot two y-axis, left for FPs per 5M RBC, right for FNR
-  ax2 = ax.twinx()
 
   for i in range(fps_slides.shape[0]):
-    ax.plot(thrs, fps_slides[i], label=f'FPs {i}', alpha=0.5, color='red')
+    ax.plot(thrs, fps_slides[i], label=f'FPs {i}', alpha=0.5, color=red,linewidth=linewidth)
+
   for i in range(fnr_slides.shape[0]):
-    ax2.plot(thrs, fnr_slides[i], label=f'FNR {i}', alpha=0.5, color='blue')
+    ax2.plot(thrs, fnr_slides[i], label=f'FNR {i}', alpha=0.5, color=blue,linewidth=linewidth)
 
   # compute an average fnr 
   fnr_avg = np.mean(fnr_slides, axis=0)
   # plot with pink with clear markers
-  line = ax2.plot(thrs, fnr_avg, label='FNR Avg', color='orange', marker='o', markerfacecolor='pink', markersize=3)
+  #line = ax2.plot(thrs, fnr_avg, label='FNR Avg', color='orange', marker='o', linewidth=linewidth)
   # show the exact number at fnr_avg[0] in the plot
-  ax2.text(thrs[0], fnr_avg[0], f'{fnr_avg[0]:.2f}', ha='right', va='bottom', fontsize=5)
+  #ax2.text(thrs[0], fnr_avg[0], f'{fnr_avg[0]:.2f}', ha='right', va='bottom', fontsize=5)
   # shows the legend only for the average
-  ax2.legend(handles=line)
+  #ax2.legend(handles=line)
 
-  ax.set_xlabel('File Name')
-  ax.set_ylabel('FPs per 5M RBC', color='red')
+
+  ax.set_xlabel('Threshold', fontsize=fontsize)
+  ax.set_ylabel('False positive count / µL', color=red, fontsize=fontsize)
+  ax.tick_params(axis='y', labelcolor=red)
   ax.set_ylim(0, 15)
-  ax2.set_ylabel('FNR', color='blue')
+  ax2.set_ylabel('Per spot false negative rate', color=blue, fontsize=fontsize)
+  ax2.tick_params(axis='y', labelcolor=blue)
   ax2.set_ylim(0, 1)
-  #ax2.set_ylim(0, 1)
-  # x axis labels
-  #ax.set_xticks(thrs)
-  ax.set_xlabel('Threshold')
-  fig.savefig(os.path.join(out_dir, f'fp_fnr.png'), dpi=300)
-
+  
+  plt.tight_layout()
+  fig.savefig(os.path.join(out_dir, f'fp_fnr.pdf'), dpi=300)
 
 def calculate_fnr(csv_dir, threshold_path):
   """
@@ -234,48 +275,62 @@ def calculate_fnr(csv_dir, threshold_path):
         
   return fnr_list
 
-def plot_ratio_matrix(csv_dir, out_dir, text_size=6, tick_size=4, manuscript = False):
+def plot_ratio_matrix(csv_dir, out_dir,FP_target=5):
   """
   Plots the ratio matrix of FNR given FPR and saves it to a file.
   """
-  if manuscript:
-    line_width = 0.1
-    text_size=6 
-    tick_size=5
-    fig, ax = plt.subplots(figsize=(5.8*cm, 4.0*cm))
+  if MANUSCRIPT_MODE:
+      figsize = (7, 4)  # in cm
+      fontsize = 6 # for the labels (text fontsize)
+      ticksize = 5 # for the tick's font size
+      linewidth = 1 # the plot line width
+      markersize = 10 # the size of the markers
+      axislinewidth = 0.5 # the axis line width
   else:
-    line_width = 0.5
-    fig, ax = plt.subplots()
+      figsize = (12, 10)  # in inches
+      fontsize = 12
+      linewidth = 1.5
+      ticksize=8
+  
+  fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+  set_figure_properties(fig, ax, fontsize, linewidth)
 
   threshold_path = os.path.join(out_dir, 'thresholds.csv')
-  out_path = os.path.join(out_dir, 'ratio_matrix.png')
 
   fnr_list = calculate_fnr(csv_dir, threshold_path)
   ratio_df = pd.DataFrame(fnr_list, columns=['Pos File', 'Threshold File', 'Ratio'])
   matrix_df = ratio_df.pivot(index='Threshold File', columns='Pos File', values='Ratio')
 
-  
   c = ax.pcolor(matrix_df, cmap='Blues', vmin=0, vmax=1)
 
   ax.set_xticks(np.arange(matrix_df.shape[1]), minor=False)
-  ax.set_xticklabels([col[:7] for col in matrix_df.columns], minor=False, fontsize=tick_size)
+  ax.set_xticklabels([col[:7] for col in matrix_df.columns], minor=False, fontsize=ticksize)
   plt.xticks(rotation=45)
 
-  # get names for the negative files
-  neg_names = [_get_label(file_name) for file_name in neg_files]
-  ax.set_yticks(np.arange(matrix_df.shape[0]), minor=False)
-  ax.set_yticklabels([_get_label(file_name) for file_name in matrix_df.index], minor=False, fontsize=tick_size)
+  if not MANUSCRIPT_MODE:
+    ax.set_yticks(np.arange(matrix_df.shape[0]), minor=False)
+    ax.set_yticklabels([_get_label(file_name) for file_name in matrix_df.index], minor=False, fontsize=ticksize)
+  else:
+     # show every 10th label, add "H" before the number
+    ax.set_yticks(np.arange(matrix_df.shape[0])[::10], minor=False)
+    # just show the number not the name
+    ax.set_yticklabels([f"H{int(i*10)}" for i in range(len(matrix_df.index[::10]))], minor=False, fontsize=ticksize)
 
+  ax.tick_params(axis='both', which='major', labelsize=ticksize, width=axislinewidth)
   color_bar = fig.colorbar(c, ax=ax)
-  color_bar.ax.tick_params(labelsize=tick_size, width=line_width)
-  color_bar.set_label('FNR at FP = 5/µl', fontsize=text_size)
+  color_bar.ax.tick_params(labelsize=ticksize, width=axislinewidth)
+  color_bar.set_label('FNR at FP = {}/µl'.format(FP_target), fontsize=fontsize)
 
-  plt.xlabel('Positive slides', fontsize=text_size)
-  plt.ylabel('Negative slides', fontsize=text_size)
+  for spine in ax.spines.values():
+    spine.set_linewidth(axislinewidth)
+
+  # set the axislinewidth of the colorbar
+  color_bar.outline.set_linewidth(axislinewidth)
+
+  plt.xlabel('Positive slides', fontsize=fontsize)
+  plt.ylabel('Negative slides', fontsize=fontsize)
   plt.tight_layout()
-  plt.tick_params(width=0.1)
-  plt.savefig(out_path, dpi=300)
-
+  plt.savefig(os.path.join(out_dir, f'ratio_matrix.pdf'), dpi=300)
 
 def calculate_roc(csv_dir):
   """
@@ -311,164 +366,179 @@ def plot_roc_curve(csv_dir, out_dir,fpr_end = 0.0001,fpr_cutoff = 0.5,tpr_cutoff
   """
   Plots the ROC curve and saves it to a file.
   """
+  if MANUSCRIPT_MODE:
+    figsize = (5.8, 4.0)  # in cm
+    fontsize = 6
+    linewidth = 0.3
+    markersize = 1 # the size of the markers
+    axislinewidth = 0.5 # the axis line width
+  else:
+    figsize = (20, 15)  # in inches
+    fontsize = 12
+    linewidth = 1.5
+  
+  fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+  set_figure_properties(fig, ax, fontsize, linewidth)
+
   fpr, tpr, thresholds, roc_auc = calculate_roc(csv_dir)
 
-  plt.figure()
-  plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {roc_auc:.5f})')
-  plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+  ax.plot(fpr, tpr, color='darkorange', lw=linewidth*3)
+  ax.plot([0, 1], [0, 1], color='navy', lw=linewidth*2, linestyle='--')
 
-  # here we directly use the fpr/tpr_cutoff
-  plt.axvline(x=fpr_cutoff, color='r', linestyle='--',label='Proposed threshold: {:.5f}'.format(fpr_cutoff))
-  plt.scatter(fpr_cutoff, tpr_cutoff, color='r')
-  plt.text(fpr_cutoff,tpr_cutoff, " tpr: ({:.4f})".format(tpr_cutoff), ha='left', va='top')
+  ax.axvline(x=fpr_cutoff, color='r', linestyle='--', label=f'FPR: {fpr_cutoff:.5f}',linewidth=linewidth)
+  ax.scatter(fpr_cutoff, tpr_cutoff, color='r', s=markersize)
+  ax.text(fpr_cutoff, tpr_cutoff, f" TPR: ({tpr_cutoff:.4f})", ha='left', va='top', fontsize=fontsize)
 
-  plt.xlim([0.0, fpr_end])
-  plt.ylim([0.0, 1.0])
-  plt.xlabel('False Positive Rate')
-  plt.ylabel('True Positive Rate')
-  plt.title('Receiver Operating Characteristic')
-  plt.legend(loc="lower right")
-  plt.savefig(os.path.join(out_dir, 'roc_curve_zoomed.png'), dpi=300)
+  ax.set_xlim([0.0, fpr_end])
+  # use e notation for the x-axis
+  ax.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+  ax.set_ylim([0.0, 1.0])
+  ax.set_xlabel('False Positive Rate', fontsize=fontsize)
+  ax.set_ylabel('True Positive Rate', fontsize=fontsize)
+  #ax.set_title('Receiver Operating Characteristic', fontsize=fontsize+2)
+  ax.legend(loc="lower right", fontsize=fontsize-2)
+  
+  plt.tight_layout()
+  plt.savefig(os.path.join(out_dir, 'roc_curve_zoomed.pdf'), dpi=300)
+
+  # plot the full ROC curve
+  fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+  set_figure_properties(fig, ax, fontsize, linewidth)
+
+  ax.plot(fpr, tpr, color='darkorange', lw=linewidth*6, label=f'ROC curve (area = {roc_auc:.5f})',zorder=2)
+  ax.plot([0, 1], [0, 1], color='navy', lw=linewidth*4, linestyle='--')
+
+  ax.set_xlim([0.0, 1.0])
+  ax.set_ylim([0.0, 1.0])
+  ax.set_xlabel('False Positive Rate', fontsize=fontsize)
+  ax.set_ylabel('True Positive Rate', fontsize=fontsize)
+  #ax.set_title('Receiver Operating Characteristic', fontsize=fontsize+2)
+  ax.legend(loc="lower right", fontsize=fontsize-2)
+
+  plt.tight_layout()
+  plt.savefig(os.path.join(out_dir, 'roc_curve.pdf'), dpi=300)
+
+def merge(path1, path2, model1, model2, ver1, ver2):
+    if MANUSCRIPT_MODE:
+        figsize = (17.5, 5)  # in cm
+        fontsize = 6 # for the labels (text fontsize)
+        ticksize = 5 # for the tick's font size
+        linewidth = 1 # the plot line width
+        markersize = 10 # the size of the markers
+        axislinewidth = 0.5 # the axis line width
+    else:
+        figsize = (30, 20) 
+        fontsize = 12
+        linewidth = 1.5
+    
+    fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+    set_figure_properties(fig, ax, fontsize, axislinewidth)
+
+    dir1 = f"{path1}/{model1}/{ver1}/csv"
+    dir2 = f"{path2}/{model2}/{ver2}/csv"
+    save_dir = f"{path1}/{model1}/{ver1}_{ver2}/csv"
+
+    files1 = os.listdir(dir1)
+    files2 = os.listdir(dir2)
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+        print(f"Found {len(files1)} files in {dir1}")
+        print(f"Found {len(files2)} files in {dir2}")
+        print(f"Saving to {save_dir}")
+
+        for file in tqdm(files1):
+            df1 = pd.read_csv(f"{dir1}/{file}")
+            df2 = pd.read_csv(f"{dir2}/{file}")
+
+            indices = df1["parasite output"] > df2["parasite output"]
+            df1.loc[indices] = df2.loc[indices]
+
+            df1.to_csv(f"{save_dir}/{file}", index=False)
+
+    return 
+
+    FP_target = 5
+    thresholds1 = calculate_threshold(dir1, FP_target)
+    thresholds2 = calculate_threshold(dir2, FP_target)
+    threshold_merged = calculate_threshold(save_dir, FP_target)
+
+    thresholds1_df = pd.DataFrame(thresholds1, columns=['file_name', 'threshold'])
+    thresholds2_df = pd.DataFrame(thresholds2, columns=['file_name', 'threshold'])
+    thresholds_merged_df = pd.DataFrame(threshold_merged, columns=['file_name', 'threshold'])
+
+    thresholds1_df['label'] = thresholds1_df['file_name'].apply(_get_label)
+    thresholds2_df['label'] = thresholds2_df['file_name'].apply(_get_label)
+    thresholds_merged_df['label'] = thresholds_merged_df['file_name'].apply(_get_label)
+
+    assert (thresholds1_df['label'] == thresholds2_df['label']).all()
+    assert (thresholds1_df['label'] == thresholds_merged_df['label']).all()
+    assert (thresholds2_df['label'] == thresholds_merged_df['label']).all()
+
+    df1 = thresholds1_df
+    df2 = thresholds2_df
+    df_merged = thresholds_merged_df
+
+    x = np.arange(len(df1))
+
+    plot_dir = os.path.join(f"{path1}/{model1}/{ver1}_{ver2}/plots")
+
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+
+    figure = "scatter"  # You can change this to "bar" or "scatter" if needed
+
+    if figure == "bar":
+        rects1 = ax.bar(x, df1['threshold'], label=ver1, alpha=0.3, color='b')
+        rects2 = ax.bar(x, df2['threshold'], label=ver2, alpha=0.3, color='r')
+
+        ax.set_xticks(x)
+        for i, thr_merged, label in zip(range(len(df1)), df_merged['threshold'], df1['label']):
+            ax.text(i, thr_merged, f"{label}", ha='center', va='bottom', fontsize=fontsize-2)
+
+        ninefive_pertile = df_merged['threshold'].quantile(0.95)
+        line = ax.axhline(y=ninefive_pertile, color='r', linestyle='--', label=f'95% Pertile: {ninefive_pertile:.2f}')
+        fig.legend(handles=[line, rects1, rects2], fontsize=fontsize-2)
+
+        ax.set_title('Thresholds by File', fontsize=fontsize+2)
+        ax.set_xlim(0, len(x))
+        ax.set_xlabel('File Name', fontsize=fontsize)
+        ax.set_ylabel('Threshold', fontsize=fontsize)
+
+    elif figure == "scatter":
+        scatter1 = ax.scatter(x, df1['threshold'], label='Model 1', color='#1f77b4', alpha=1, s=markersize, zorder=2)
+        scatter2 = ax.scatter(x, df2['threshold'], label='Model 2', color='#ff7f0e', alpha=1, s=markersize, zorder=2)
+        scatter3 = ax.scatter(x, df_merged['threshold'], label='Ensemble model', color='#2ca02c', alpha=1, s=markersize, marker='*', zorder=3)
+
+        for i in range(len(x)):
+            ax.plot([x[i], x[i]], [df1['threshold'][i], df2['threshold'][i]], color='gray', linestyle='--', alpha=0.7, linewidth=linewidth)
+            ax.plot([x[i], x[i]], [df_merged['threshold'][i], min(df1['threshold'][i], df2['threshold'][i])], color='#2ca02c', linestyle='--', alpha=1, linewidth=linewidth)
+
+        ax.set_xlabel('Dataset ID', fontsize=fontsize)
+        ax.set_ylabel('Threshold', fontsize=fontsize)
+
+        # set x-ticks, add a "H" before the number to indicate that it is a healthy slide, tick every 20 slides
+        ax.set_xlim(-1, len(x))
+        ax.set_xticks(x[::20])
+        ax.set_xticklabels([f"H{x}" for x in x[::20]], fontsize=ticksize)
 
 
-def merge(path1,path2,model1,model2,ver1,ver2):
+        # set tick size
+        ax.tick_params(axis='both', which='major', labelsize=ticksize)
 
-  dir1 = f"{path1}/{model1}/{ver1}/csv"
-  dir2 = f"{path2}/{model2}/{ver2}/csv"
-  save_dir = f"{path1}/{model1}/{ver1}_{ver2}/csv"
+        ax.legend(fontsize=fontsize-2)
 
-  # for each of the csv files, read them and merge them
-  # get all the csv files in the directory
-  files1 = os.listdir(dir1)
-  files2 = os.listdir(dir2)
-
-  # create a new directory, create the parental directory if it doesn't exist
-  if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-
-    print(f"Found {len(files1)} files in {dir1}")
-    print(f"Found {len(files2)} files in {dir2}")
-    print(f"Saving to {save_dir}")
-
-    for file in tqdm(files1):
-        #print(f"Processing {file}")
-        df1 = pd.read_csv(f"{dir1}/{file}")
-        df2 = pd.read_csv(f"{dir2}/{file}")
-
-        # now compare the each row of the two dataframes, preserve the row with a lower "parasite output"
-        indices = df1["parasite output"] > df2["parasite output"]
-        df1.loc[indices] = df2.loc[indices]
-
-        # save the new dataframe
-        df1.to_csv(f"{save_dir}/{file}", index=False)
-
-  # based on plot_threshold, plot a overlay bar plot of two versions
-  FP_target = 5
-  thresholds1 = calculate_threshold(dir1,FP_target)
-  thresholds2 = calculate_threshold(dir2,FP_target)
-  threshold_merged = calculate_threshold(save_dir,FP_target)
-
-  thresholds1_df = pd.DataFrame(thresholds1, columns=['file_name', 'threshold'])
-  thresholds2_df = pd.DataFrame(thresholds2, columns=['file_name', 'threshold'])
-  thresholds_merged_df = pd.DataFrame(threshold_merged, columns=['file_name', 'threshold'])
-
-  thresholds1_df['label'] = thresholds1_df['file_name'].apply(_get_label)
-  thresholds2_df['label'] = thresholds2_df['file_name'].apply(_get_label)
-  thresholds_merged_df['label'] = thresholds_merged_df['file_name'].apply(_get_label)
-
-  # make sure that the order is the same
-  assert (thresholds1_df['label'] == thresholds2_df['label']).all()
-  assert (thresholds1_df['label'] == thresholds_merged_df['label']).all()
-  assert (thresholds2_df['label'] == thresholds_merged_df['label']).all()
-
-  df1 = thresholds1_df
-  df2 = thresholds2_df
-  df_merged = thresholds_merged_df
-
-  x = np.arange(len(df1))
-
-  plot_dir = os.path.join("{}/{}/{}_{}/plots".format(path1,model1,ver1,ver2))
-
-  # create a new directory, create the parental directory if it doesn't exist
-  if not os.path.exists(plot_dir):
-      os.makedirs(plot_dir)
-
-  figure = "scatter"
-
-  if figure == "bar":
-
-    fig, ax = plt.subplots(figsize=(15, 8))
-    rects1 = ax.bar(x, df1['threshold'], label=ver1,alpha=0.3,color='b')
-    rects2 = ax.bar(x, df2['threshold'], label=ver2,alpha=0.3,color='r')
-
-    ax.set_xticks(x)
-    # show the label on top of each bar
-    for i, thr_merged, label in zip(range(len(df1)), df_merged['threshold'], df1['label']):
-      ax.text(i, thr_merged, "{}".format(label), ha='center', va='bottom')
-
-    ninefive_pertile = df_merged['threshold'].quantile(0.95)
-    line = ax.axhline(y=ninefive_pertile, color='r', linestyle='--',label='95% Pertile: {:.2f}'.format(ninefive_pertile))
-    fig.legend(handles=[line,rects1,rects2])
-
-    fig.suptitle('Thresholds by File')
-    ax.set_xlim(0, len(x))
-    ax.set_xlabel('File Name')
-    ax.set_ylabel('Threshold')
-    fig.savefig(os.path.join(plot_dir, 'merged_bar_plot.png'), dpi=300)
-
-  elif figure == "line":
-    fig, ax = plt.subplots(figsize=(15, 8))
-    ax.plot(x, df1['threshold'], marker='o', linestyle='--', label='Model 1', color='#1f77b4', alpha=0.5)
-    ax.plot(x, df2['threshold'], marker='s', linestyle='--', label='Model 2', color='#ff7f0e', alpha=0.5)
-    ax.plot(x, df_merged['threshold'], marker='*', linestyle='-', label='Merged', color='#2ca02c', alpha=1)
-
-    ax.set_xlabel('Dataset ID', fontsize=12)
-    ax.set_ylabel('Threshold', fontsize=12)
-    ax.set_title('Comparison of Thresholds Across Datasets', fontsize=14, fontweight='bold')
-    ax.legend(fontsize=10)
-    #ax.grid(True, linestyle='--', alpha=0.7)
-
-    ax.set_xlim(0, len(x))
-
-    ax.set_facecolor('#f0f0f0')
-    ax.tick_params(axis='both', which='major', labelsize=10)
+        
 
     plt.tight_layout()
-    fig.savefig(os.path.join(plot_dir, 'merged_line_plot.png'), dpi=300)
+    fig.savefig(os.path.join(plot_dir, f'merged_{figure}_plot.pdf'), dpi=300)
+    plt.close(fig)
 
-  elif figure == "scatter":
-    
-    fig, ax = plt.subplots(figsize=(15, 8))
-    
-    # Create scatter plots
-    scatter1 = ax.scatter(x, df1['threshold'], label='Model 1', color='#1f77b4', alpha=0.7, s=50)
-    scatter2 = ax.scatter(x, df2['threshold'], label='Model 2', color='#ff7f0e', alpha=0.7, s=50)
-    
-    # Increase size and change marker for merged data
-    scatter3 = ax.scatter(x, df_merged['threshold'], label='Merged', color='#2ca02c', alpha=1, s=100, marker='*', zorder=3)
-    ax.plot(x, df_merged['threshold'], color='#2ca02c', linestyle='-', alpha=0.7, zorder=2)
+    return
 
-    # Add connecting lines for each dataset
-    for i in range(len(x)):
-        ax.plot([x[i], x[i]], [df1['threshold'][i], df2['threshold'][i]], color='gray', linestyle='--', alpha=0.3)
-        # Add lines connecting merged points to original points
-        ax.plot([x[i], x[i]], [df_merged['threshold'][i], min(df1['threshold'][i], df2['threshold'][i])], color='gray', linestyle='--', alpha=0.3)
-
-    ax.set_xlabel('Dataset ID', fontsize=12)
-    ax.set_ylabel('Threshold', fontsize=12)
-    ax.set_title('Comparison of Thresholds', fontsize=14, fontweight='bold')
-    ax.legend(fontsize=10)
-
-    ax.set_xlim(-0.5, len(x) - 0.5)
-    #ax.grid(True, linestyle='--', alpha=0.3)
-
-    plt.tight_layout()
-    fig.savefig(os.path.join(plot_dir, 'merged_scatter_plot.png'), dpi=300)
-  # al plot the threshold 
-  #plot_threshold(save_dir, plot_dir)
-  #plot_ratio_matrix(save_dir, plot_dir)
-
-  return
+# Usage example:
+# merge(path1, path2, model1, model2, ver1, ver2, manuscript_mode=True)
 
 def numpy_array_to_image_string(frame):
     frame = frame.transpose(1, 2, 0)
@@ -510,11 +580,23 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
     """
     Plots the confusion matrix for the entire dataset and saves it to a file.
     """
+    if MANUSCRIPT_MODE:
+        figsize = (5.8, 5.5)  # in cm
+        fontsize = 6
+        ticksize = 5
+        linewidth = 1 # the plot line width
+        markersize = 10 # the size of the markers
+        axislinewidth = 0.5 # the axis line width
+    else:
+        figsize = (10, 8)  # in inches
+        fontsize = 12
+        linewidth = 1.5
+    
+    fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+
     confusion_matrix = calculate_confusion_matrix(csv_dir, threshold)
-    # adds up all the confusion matrix
     confusion_df = pd.DataFrame(confusion_matrix, columns=['Slide', 'TP', 'FP', 'TN', 'FN'])
     
-    # get a overall confusion matrix
     confusion_df = confusion_df[['TP', 'FP', 'FN','TN']].sum()
   
     TPR = confusion_df['TP'] / (confusion_df['TP'] + confusion_df['FN'])
@@ -522,34 +604,38 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
     TNR = confusion_df['TN'] / (confusion_df['TN'] + confusion_df['FP'])
     FNR = confusion_df['FN'] / (confusion_df['TP'] + confusion_df['FN'])
 
-    # calculate confusion matrix using TPR, FPR, TNR, FNR
     cm = np.array([[TPR, FNR], [FPR, TNR]])
 
-    # plot the confusion matrix
-    fig, ax = plt.subplots()
     im = ax.imshow(cm, interpolation='nearest', cmap='Blues')
-    ax.figure.colorbar(im, ax=ax)
+    cbar = fig.colorbar(im, ax=ax)
     
-    # We want to show all ticks...
+    # colorbar ticks line width
+    cbar.outline.set_linewidth(axislinewidth)
+    cbar.ax.tick_params(labelsize=ticksize, width=axislinewidth)
+        
     ax.set(xticks=np.arange(cm.shape[1]),
            yticks=np.arange(cm.shape[0]),
-           xticklabels=['Positive', 'Negative'], 
-           yticklabels=['Positive', 'Negative'],
-           title='Confusion Matrix',
-           ylabel='True Label',
-           xlabel='Predicted Label')
+           xticklabels=['P', 'N'], 
+           yticklabels=['P', 'N'],
+           ylabel='True',
+           xlabel='Predicted')
 
-    # Loop over data dimensions and create text annotations.
+    #ax.set_title('Confusion Matrix', fontsize=fontsize+2)
+    ax.set_xlabel('Predicted Label', fontsize=fontsize)
+    ax.set_ylabel('True Label', fontsize=fontsize)
+
     fmt = '.3f'
     thresh = cm.max() / 2.
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
             ax.text(j, i, f'{cm[i, j]*100:{fmt}}%',
                     ha="center", va="center",
-                    color="white" if cm[i, j] > thresh else "black")
+                    color="white" if cm[i, j] > thresh else "black",
+                    fontsize=fontsize-2)
+    set_figure_properties(fig, ax, fontsize, linewidth)
 
-    fig.tight_layout()
-    plt.savefig(os.path.join(out_dir, 'confusion_matrix.png'), dpi=300)
-    plt.show()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, 'confusion_matrix.pdf'), dpi=300)
+    plt.close()
 
     return TPR, FPR, TNR, FNR
