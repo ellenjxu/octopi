@@ -11,6 +11,7 @@ from utils.dataset import SinglePatientDataset
 from train import get_outputs
 from pathlib import Path
 import os
+import numpy as np
 
 device ='cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -37,8 +38,6 @@ def main(cfg):
     negs_txt = f.readlines()
   negs_txt = [x.strip().replace('.csv', '.npy') for x in negs_txt]
   negs = [x for x in whole if any([y in x.name for y in negs_txt])]
-
-  
 
   if not cfg.test.whole:
     files = postivs + negs
@@ -78,7 +77,8 @@ def main(cfg):
         print(f"Saving features for {dataset_id}")
         features = features.numpy()
         features = features.reshape(features.shape[0], -1)  # flatten
-        features.tofile(os.path.join(out_dir_features, f"{dataset_id}.npy"))
+        feature_file = os.path.join(out_dir_features, f"{dataset_id}.npy")
+        np.save(feature_file, features)
 
         # check if the csv already exists
     if os.path.exists(os.path.join(out_dir, f"{dataset_id}.csv")):
