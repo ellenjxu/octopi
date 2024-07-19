@@ -21,6 +21,6 @@ class TinyNN(nn.Module):
     x = self.pool2(x)
     x = x.view(x.size(0), -1)
     x = F.relu(self.fc1(x))
-    x = F.relu(self.fc2(x))
-    x = self.fc3(x)
-    return x
+    penultimate_features = F.relu(self.fc2(x))
+    x = self.fc3(penultimate_features)
+    return x, penultimate_features

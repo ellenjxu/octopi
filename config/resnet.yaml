@@ -37,8 +37,8 @@ test:
   num_workers: 4
   out_dir: "${out}/${model.model}/"
   cp_name: "best.pt"
-  whole: True
-  save_features: True
+  whole: False
+  save_features: False
 
 evaluate:
   model_dir: "${out}/${model.model}/${wandb.name}"

@@ -43,15 +43,16 @@ def main(cfg):
     files = postivs + negs
     print(f"Positives: {len(postivs)}, Negatives: {len(negs)}")
   else:
-    out_dir = os.path.join(cfg.test.out_dir, cfg.wandb.name, "csv_whole")
+    out_dir = os.path.join(cfg.test.out_dir, cfg.wandb.name, "csv_whole" if cfg.test.whole else "csv")
     files = whole
     print(f"Whole slides: {len(whole)}")
   
   for filepath in files: 
     dataset_id = filepath.name.split("_cleaned")[0].split(".npy")[0]
 
-    if os.path.exists(os.path.join(out_dir_features, f"{dataset_id}.npy")):
-      if os.path.exists(os.path.join(out_dir, f"{dataset_id}.csv")):
+    
+    if os.path.exists(os.path.join(out_dir, f"{dataset_id}.csv")):
+      if os.path.exists(os.path.join(out_dir_features, f"{dataset_id}.npy")) or not cfg.test.save_features:
         print(f"Skipping {dataset_id}")
         continue
     

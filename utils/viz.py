@@ -17,13 +17,13 @@ cm = 1/2.54
 MANUSCRIPT_MODE = True
 
 # Helper function to set figure properties based on mode
-def set_figure_properties(fig, ax, fontsize, linewidth):
+def set_figure_properties(fig, ax, fontsize, axislinewidth):
     if MANUSCRIPT_MODE:
-        ax.tick_params(width=linewidth, length=2*linewidth)
+        ax.tick_params(width=axislinewidth, length=6*axislinewidth)
         for spine in ax.spines.values():
-            spine.set_linewidth(linewidth)
+            spine.set_linewidth(axislinewidth)
         plt.rcParams['font.size'] = fontsize
-        plt.rcParams['axes.linewidth'] = linewidth
+        plt.rcParams['axes.linewidth'] = axislinewidth
     else:
         # Default settings for better visibility
         plt.rcParams['font.size'] = 12
@@ -86,9 +86,9 @@ def plot_threshold(csv_dir, out_dir,FP_target=5):
   """
 
   if MANUSCRIPT_MODE:
-    figsize = (5.8*cm, 4.0*cm)  # in cm
+    figsize = (20*cm, 10*cm)  # in cm
     fontsize = 6
-    linewidth = 0.1
+    linewidth = 0.3
   else:
     figsize = (12, 8)  # in inches
     fontsize = 12
@@ -117,8 +117,8 @@ def plot_threshold(csv_dir, out_dir,FP_target=5):
   ax.set_xlabel('File Name', fontsize=fontsize)
   ax.set_ylabel('Threshold', fontsize=fontsize)
 
-  plt.tight_layout()
-  plt.savefig(os.path.join(out_dir, 'thresholds_by_file.pdf'), dpi=300)
+  plt.tight_layout(pad=0.05)
+  plt.savefig(os.path.join(out_dir, 'thresholds_by_file.pdf'), dpi=300, transparent=True)      
 
   return ninefive_pertile
 
@@ -153,12 +153,12 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
   '''
 
   if MANUSCRIPT_MODE:
-    figsize = (7, 4)  # in cm
+    figsize = (5.2, 4)  # in cm
     fontsize = 6 # for the labels (text fontsize)
     ticksize = 5 # for the tick's font size
     linewidth = 1 # the plot line width
     markersize = 10 # the size of the markers
-    axislinewidth = 0.5 # the axis line width
+    axislinewidth = 0.3 # the axis line width
   else:
     figsize = (30, 20) 
     fontsize = 12
@@ -181,8 +181,9 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
     total = len(df)
     dfs.append(df)
     
-  #thrs = np.linspace(thr_start, 1.01, num=50)
-  thrs = np.arange(thr_start, 1.01, 0.01)
+  thrs = np.linspace(thr_start, 1.00, num=50)
+  thrs = np.append(thrs, 1.0+ 1e-6)
+  #thrs = np.arange(thr_start, 1.01, 0.01)
   thrs[-1] = 1+1e-6
   
   fps_slides = []
@@ -247,15 +248,15 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
 
 
   ax.set_xlabel('Threshold', fontsize=fontsize)
+
   ax.set_ylabel('False positive count / µL', color=red, fontsize=fontsize)
   ax.tick_params(axis='y', labelcolor=red)
   ax.set_ylim(0, 15)
   ax2.set_ylabel('Per spot false negative rate', color=blue, fontsize=fontsize)
   ax2.tick_params(axis='y', labelcolor=blue)
   ax2.set_ylim(0, 1)
-  
-  plt.tight_layout()
-  fig.savefig(os.path.join(out_dir, f'fp_fnr.pdf'), dpi=300)
+  plt.tight_layout(pad=0.05)
+  fig.savefig(os.path.join(out_dir, f'fp_fnr.pdf'), dpi=300, transparent=True)      
 
 def calculate_fnr(csv_dir, threshold_path):
   """
@@ -280,12 +281,12 @@ def plot_ratio_matrix(csv_dir, out_dir,FP_target=5):
   Plots the ratio matrix of FNR given FPR and saves it to a file.
   """
   if MANUSCRIPT_MODE:
-      figsize = (7, 4)  # in cm
+      figsize = (5.2, 4)  # in cm
       fontsize = 6 # for the labels (text fontsize)
       ticksize = 5 # for the tick's font size
       linewidth = 1 # the plot line width
       markersize = 10 # the size of the markers
-      axislinewidth = 0.5 # the axis line width
+      axislinewidth = 0.3 # the axis line width
   else:
       figsize = (12, 10)  # in inches
       fontsize = 12
@@ -293,7 +294,7 @@ def plot_ratio_matrix(csv_dir, out_dir,FP_target=5):
       ticksize=8
   
   fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
-  set_figure_properties(fig, ax, fontsize, linewidth)
+  set_figure_properties(fig, ax, fontsize, axislinewidth)
 
   threshold_path = os.path.join(out_dir, 'thresholds.csv')
 
@@ -321,16 +322,13 @@ def plot_ratio_matrix(csv_dir, out_dir,FP_target=5):
   color_bar.ax.tick_params(labelsize=ticksize, width=axislinewidth)
   color_bar.set_label('FNR at FP = {}/µl'.format(FP_target), fontsize=fontsize)
 
-  for spine in ax.spines.values():
-    spine.set_linewidth(axislinewidth)
-
-  # set the axislinewidth of the colorbar
-  color_bar.outline.set_linewidth(axislinewidth)
+  # set the tick line length
+  color_bar.ax.tick_params(width=axislinewidth, length=6*axislinewidth)
 
   plt.xlabel('Positive slides', fontsize=fontsize)
   plt.ylabel('Negative slides', fontsize=fontsize)
-  plt.tight_layout()
-  plt.savefig(os.path.join(out_dir, f'ratio_matrix.pdf'), dpi=300)
+  plt.tight_layout(pad=0.05)
+  plt.savefig(os.path.join(out_dir, f'ratio_matrix.pdf'), dpi=300, transparent=True)      
 
 def calculate_roc(csv_dir):
   """
@@ -367,56 +365,59 @@ def plot_roc_curve(csv_dir, out_dir,fpr_end = 0.0001,fpr_cutoff = 0.5,tpr_cutoff
   Plots the ROC curve and saves it to a file.
   """
   if MANUSCRIPT_MODE:
-    figsize = (5.8, 4.0)  # in cm
+    figsize = (5.5, 4.0)  # in cm
     fontsize = 6
-    linewidth = 0.3
+    linewidth = 1
     markersize = 1 # the size of the markers
-    axislinewidth = 0.5 # the axis line width
+    axislinewidth = 0.3 # the axis line width
   else:
     figsize = (20, 15)  # in inches
     fontsize = 12
     linewidth = 1.5
-  
-  fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
-  set_figure_properties(fig, ax, fontsize, linewidth)
 
   fpr, tpr, thresholds, roc_auc = calculate_roc(csv_dir)
-
-  ax.plot(fpr, tpr, color='darkorange', lw=linewidth*3)
-  ax.plot([0, 1], [0, 1], color='navy', lw=linewidth*2, linestyle='--')
-
-  ax.axvline(x=fpr_cutoff, color='r', linestyle='--', label=f'FPR: {fpr_cutoff:.5f}',linewidth=linewidth)
-  ax.scatter(fpr_cutoff, tpr_cutoff, color='r', s=markersize)
-  ax.text(fpr_cutoff, tpr_cutoff, f" TPR: ({tpr_cutoff:.4f})", ha='left', va='top', fontsize=fontsize)
-
-  ax.set_xlim([0.0, fpr_end])
-  # use e notation for the x-axis
-  ax.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
-  ax.set_ylim([0.0, 1.0])
-  ax.set_xlabel('False Positive Rate', fontsize=fontsize)
-  ax.set_ylabel('True Positive Rate', fontsize=fontsize)
-  #ax.set_title('Receiver Operating Characteristic', fontsize=fontsize+2)
-  ax.legend(loc="lower right", fontsize=fontsize-2)
-  
-  plt.tight_layout()
-  plt.savefig(os.path.join(out_dir, 'roc_curve_zoomed.pdf'), dpi=300)
-
-  # plot the full ROC curve
+   
+  ### plot the full ROC curve
   fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
-  set_figure_properties(fig, ax, fontsize, linewidth)
+  set_figure_properties(fig, ax, fontsize, axislinewidth)
 
-  ax.plot(fpr, tpr, color='darkorange', lw=linewidth*6, label=f'ROC curve (area = {roc_auc:.5f})',zorder=2)
-  ax.plot([0, 1], [0, 1], color='navy', lw=linewidth*4, linestyle='--')
+  ax.plot(fpr, tpr, color='darkorange', lw=linewidth, label=f'ROC curve (area = {roc_auc:.5f})',zorder=2)
+  ax.plot([0, 1], [0, 1], color='navy', lw=linewidth, linestyle='--')
 
   ax.set_xlim([0.0, 1.0])
   ax.set_ylim([0.0, 1.0])
   ax.set_xlabel('False Positive Rate', fontsize=fontsize)
   ax.set_ylabel('True Positive Rate', fontsize=fontsize)
-  #ax.set_title('Receiver Operating Characteristic', fontsize=fontsize+2)
-  ax.legend(loc="lower right", fontsize=fontsize-2)
+  ax.legend(loc="lower left", fontsize=fontsize-2)
 
-  plt.tight_layout()
-  plt.savefig(os.path.join(out_dir, 'roc_curve.pdf'), dpi=300)
+  plt.tight_layout(pad=0.05)
+  plt.savefig(os.path.join(out_dir, 'roc_curve.pdf'), dpi=300, transparent=True)      
+  plt.close()
+
+  ### plot the zoomed ROC curve
+  #figsize = (3.5, 2.5)  # in cm
+  fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+  set_figure_properties(fig, ax, fontsize, axislinewidth)
+
+  ax.plot(fpr, tpr, color='darkorange', lw=linewidth, label=f'ROC curve (area = {roc_auc:.5f})',zorder=2)
+  ax.legend(loc="lower left", fontsize=fontsize-1)
+  #ax.plot([0, 1], [0, 1], color='navy', lw=linewidth, linestyle='--')
+
+  ax.axvline(x=fpr_cutoff, color='black', linestyle='--', label=f'FPR: {fpr_cutoff:.5f}',linewidth=linewidth/2)
+  ax.scatter(fpr_cutoff, tpr_cutoff, color='r', s=markersize)
+  #ax.text(fpr_cutoff, tpr_cutoff, f" TPR: {tpr_cutoff:.4f}", ha='left', va='top', fontsize=fontsize)
+
+  ax.set_xlim([0.0000001, 0.00004])
+  # use e notation for the x-axis
+  ax.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+  ax.set_ylim([0.7, 1.0])
+  ax.set_xlabel('False Positive Rate', fontsize=fontsize)
+  ax.set_ylabel('True Positive Rate', fontsize=fontsize)
+  
+  plt.tight_layout(pad=0.05)
+  plt.savefig(os.path.join(out_dir, 'roc_curve_zoomed.pdf'), dpi=300, transparent=True)      
+  plt.close()
+
 
 def merge(path1, path2, model1, model2, ver1, ver2):
     if MANUSCRIPT_MODE:
@@ -440,7 +441,7 @@ def merge(path1, path2, model1, model2, ver1, ver2):
 
     files1 = os.listdir(dir1)
     files2 = os.listdir(dir2)
-
+  
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -456,8 +457,6 @@ def merge(path1, path2, model1, model2, ver1, ver2):
             df1.loc[indices] = df2.loc[indices]
 
             df1.to_csv(f"{save_dir}/{file}", index=False)
-
-    return 
 
     FP_target = 5
     thresholds1 = calculate_threshold(dir1, FP_target)
@@ -507,13 +506,13 @@ def merge(path1, path2, model1, model2, ver1, ver2):
         ax.set_ylabel('Threshold', fontsize=fontsize)
 
     elif figure == "scatter":
-        scatter1 = ax.scatter(x, df1['threshold'], label='Model 1', color='#1f77b4', alpha=1, s=markersize, zorder=2)
-        scatter2 = ax.scatter(x, df2['threshold'], label='Model 2', color='#ff7f0e', alpha=1, s=markersize, zorder=2)
-        scatter3 = ax.scatter(x, df_merged['threshold'], label='Ensemble model', color='#2ca02c', alpha=1, s=markersize, marker='*', zorder=3)
+        scatter1 = ax.scatter(x, df1['threshold'], label='Model 1', color='#1f77b4', alpha=0.7, s=markersize, zorder=2)
+        scatter2 = ax.scatter(x, df2['threshold'], label='Model 2', color='#8165db', alpha=0.7, s=markersize, zorder=2)
+        scatter3 = ax.scatter(x, df_merged['threshold'], label='Ensemble model', color='#ff7f0e', alpha=1, s=markersize, marker='*', zorder=3)
 
         for i in range(len(x)):
             ax.plot([x[i], x[i]], [df1['threshold'][i], df2['threshold'][i]], color='gray', linestyle='--', alpha=0.7, linewidth=linewidth)
-            ax.plot([x[i], x[i]], [df_merged['threshold'][i], min(df1['threshold'][i], df2['threshold'][i])], color='#2ca02c', linestyle='--', alpha=1, linewidth=linewidth)
+            ax.plot([x[i], x[i]], [df_merged['threshold'][i], min(df1['threshold'][i], df2['threshold'][i])], color='gray', linestyle='--', alpha=0.7, linewidth=linewidth)
 
         ax.set_xlabel('Dataset ID', fontsize=fontsize)
         ax.set_ylabel('Threshold', fontsize=fontsize)
@@ -531,8 +530,8 @@ def merge(path1, path2, model1, model2, ver1, ver2):
 
         
 
-    plt.tight_layout()
-    fig.savefig(os.path.join(plot_dir, f'merged_{figure}_plot.pdf'), dpi=300)
+    plt.tight_layout(pad=0.05)
+    fig.savefig(os.path.join(plot_dir, f'merged_{figure}_plot.pdf'), dpi=300, transparent=True)      
     plt.close(fig)
 
     return
@@ -586,14 +585,12 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
         ticksize = 5
         linewidth = 1 # the plot line width
         markersize = 10 # the size of the markers
-        axislinewidth = 0.5 # the axis line width
+        axislinewidth = 0.1 # the axis line width
     else:
         figsize = (10, 8)  # in inches
         fontsize = 12
         linewidth = 1.5
     
-    fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
-
     confusion_matrix = calculate_confusion_matrix(csv_dir, threshold)
     confusion_df = pd.DataFrame(confusion_matrix, columns=['Slide', 'TP', 'FP', 'TN', 'FN'])
     
@@ -603,6 +600,8 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
     FPR = confusion_df['FP'] / (confusion_df['FP'] + confusion_df['TN'])
     TNR = confusion_df['TN'] / (confusion_df['TN'] + confusion_df['FP'])
     FNR = confusion_df['FN'] / (confusion_df['TP'] + confusion_df['FN'])
+
+    fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
 
     cm = np.array([[TPR, FNR], [FPR, TNR]])
 
@@ -620,9 +619,26 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
            ylabel='True',
            xlabel='Predicted')
 
-    #ax.set_title('Confusion Matrix', fontsize=fontsize+2)
-    ax.set_xlabel('Predicted Label', fontsize=fontsize)
-    ax.set_ylabel('True Label', fontsize=fontsize)
+    fmt = '.3f'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, f'{cm[i, j]*100:{fmt}}%',
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black",
+                    fontsize=fontsize-2)
+    
+    plt.tight_layout(pad=0.05)
+    plt.savefig(os.path.join(out_dir, 'confusion_matrix.pdf'), dpi=300, transparent=True)      
+    plt.close()
+
+    # plot the same thing but smaller size
+    figsize = (2, 2)  # in cm
+    fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+    set_figure_properties(fig, ax, fontsize, axislinewidth)
+
+    # not heatmap bar
+    im = ax.imshow(cm, interpolation='nearest', cmap='Blues')
 
     fmt = '.3f'
     thresh = cm.max() / 2.
@@ -632,10 +648,12 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
                     ha="center", va="center",
                     color="white" if cm[i, j] > thresh else "black",
                     fontsize=fontsize-2)
-    set_figure_properties(fig, ax, fontsize, linewidth)
+            
+    ax.set(xticks=[],yticks=[],xticklabels=[],yticklabels=[])
+            
 
-    plt.tight_layout()
-    plt.savefig(os.path.join(out_dir, 'confusion_matrix.pdf'), dpi=300)
+    plt.tight_layout(pad=0.05)
+    plt.savefig(os.path.join(out_dir, 'confusion_matrix_small.pdf'), dpi=300, transparent=True)      
     plt.close()
 
     return TPR, FPR, TNR, FNR
