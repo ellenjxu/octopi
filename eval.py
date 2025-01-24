@@ -26,11 +26,17 @@ def main(cfg):
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
-  thre_start = plot_threshold(csv_dir, out_dir,FP_target=FP_target)
+  thre_start = plot_threshold(csv_dir, out_dir, FP_target=FP_target, hardcoded_threshold=0.5)
   plot_fp_fnr(csv_dir, out_dir, thr_start=thre_start)
   plot_ratio_matrix(csv_dir, out_dir, FP_target)
   TPR, FPR, TNR, FNR = plot_confusion_matrix(csv_dir, out_dir, threshold = thre_start)
   plot_roc_curve(csv_dir, out_dir,fpr_end = 0.0001, fpr_cutoff = FPR, tpr_cutoff = TPR)
+
+  # Generate count CSV for the threshold
+  count_dir = os.path.join(out_dir, 'count')
+
+  if csv_dir.endswith('whole_dataset'):
+    generate_count_csv(csv_dir, count_dir, thre_start)
 
 if __name__ == "__main__":
   main()

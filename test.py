@@ -33,24 +33,33 @@ def main(cfg):
 
   postivs = list(Path(cfg.test.data_dir_pos).rglob('*.npy'))
   whole = list(Path(cfg.test.data_dir_whole).rglob('*.npy'))
-  
-  with open(cfg.test.data_txt_neg, 'r') as f:
-    negs_txt = f.readlines()
-  negs_txt = [x.strip().replace('.csv', '.npy') for x in negs_txt]
+
+  cell_count_df = pd.read_csv('utils/cell_count.csv')
+  neg_files = cell_count_df[cell_count_df['ML'] == 'Test_neg']['dataset ID'].tolist()
+  negs_txt = [file + '.npy' for file in neg_files]
   negs = [x for x in whole if any([y in x.name for y in negs_txt])]
 
+  pos_files = cell_count_df[cell_count_df['ML'] == 'Test_pos_spot']['dataset ID'].tolist()
+  print(postivs)
+  print(pos_files)
+  pos_txt = [file + '.npy' for file in pos_files]
+  pos = [x for x in postivs if any(pos_file in x.name.split('_cleaned')[0] for pos_file in pos_files)]
+
+  print('\n'.join([x.name for x in pos]))
+
   if not cfg.test.whole:
-    files = postivs + negs
-    print(f"Positives: {len(postivs)}, Negatives: {len(negs)}")
+    files = pos + negs
+    print(f"Positives: {len(pos)}, Negatives: {len(negs)}")
   else:
     out_dir = os.path.join(cfg.test.out_dir, cfg.wandb.name, "csv_whole" if cfg.test.whole else "csv")
+    # if directory does not exist, create it
+    if not os.path.exists(out_dir):
+      os.makedirs(out_dir)
     files = whole
     print(f"Whole slides: {len(whole)}")
   
   for filepath in files: 
     dataset_id = filepath.name.split("_cleaned")[0].split(".npy")[0]
-
-    
     if os.path.exists(os.path.join(out_dir, f"{dataset_id}.csv")):
       if os.path.exists(os.path.join(out_dir_features, f"{dataset_id}.npy")) or not cfg.test.save_features:
         print(f"Skipping {dataset_id}")
@@ -69,7 +78,6 @@ def main(cfg):
       'label': labels})
 
     if cfg.test.save_features:
-
       # if already exists, skip
       if os.path.exists(os.path.join(out_dir_features, f"{dataset_id}.npy")):
         print(f"Skipping {dataset_id} features")

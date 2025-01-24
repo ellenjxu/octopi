@@ -1,0 +1,47 @@
+defaults:
+  - _self_
+  - model: tinynn # this is for the model group
+  - override hydra/launcher: joblib
+
+wandb:
+  enabled: True
+  project: "octopi"
+  job_type: "train"
+  name: "run0"
+
+hydra:
+  run:
+    dir: "./"
+  job_logging:
+    root:
+      handlers: null
+
+out: "out"
+
+train:
+  data_dir: "/home/heguanglin/data/061924/init-train/"
+  lr: 0.0001
+  batch_size: 32
+  num_workers: 1
+  val_split: 0.2
+  class_weights: [1.0, 1.0]
+  epochs: 10
+  save_model: True
+  out_dir: "${out}/tinynn/"
+
+test:
+  data_dir_pos: "/home/heguanglin/data/061924/parasite-slides-cleaned/"
+  data_dir_whole: "/mnt/disks/whole/whole-slides/"
+  data_txt_neg: "utils/neg.txt"
+  batch_size: 2048
+  num_workers: 4
+  out_dir: "${out}/tinynn"
+  cp_name: "best.pt"
+  whole: False
+  save_features: False
+
+evaluate:
+  model_dir: "${out}/tinynn/${wandb.name}"
+  csv_dir: ${evaluate.model_dir}/csv
+  out_dir: ${evaluate.model_dir}/plots
+
