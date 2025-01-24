@@ -31,10 +31,10 @@ def set_figure_properties(fig, ax, fontsize, axislinewidth):
         ax.tick_params(width=1.5, length=6)
         # tight layout
 
-labels_df = pd.read_csv('utils/label.csv')
+labels_df = pd.read_csv('utils/cell_count.csv')
 def _get_label(file_name): # helper fxn for getting label
   name = file_name[:-4]
-  new_label_row = labels_df[labels_df['name'] == name]
+  new_label_row = labels_df[labels_df['dataset ID'] == name]
   if not new_label_row.empty:
     return new_label_row['new label'].values[0]
   else:
@@ -49,9 +49,17 @@ def _get_name(label): # helper fxn for getting name
 
 cell_count_df = pd.read_csv('utils/cell_count.csv')
 
-with open('utils/neg.txt') as f:
-  neg_files = f.readlines()
-neg_files = [x.strip() for x in neg_files]
+#with open('utils/neg.txt') as f:
+#  neg_files = f.readlines()
+#neg_files = [x.strip() for x in neg_files]
+neg_files = cell_count_df[cell_count_df['ML'] == 'Test_neg']['dataset ID'].tolist()
+# append .csv to the end of each file
+neg_files = [file + '.csv' for file in neg_files]
+pos_files = cell_count_df[cell_count_df['ML'] == 'Test_pos_spot']['dataset ID'].tolist()
+pos_files = [file + '.csv' for file in pos_files]
+
+print("Number of negative files: ", len(neg_files))
+print("Number of positive files: ", len(pos_files))
 
 #------------------------------------------------------
 
@@ -80,7 +88,7 @@ def calculate_threshold(csv_dir,FP_target):
       thresholds.append([file_name, threshold])
   return thresholds
 
-def plot_threshold(csv_dir, out_dir,FP_target=5):
+def plot_threshold(csv_dir, out_dir, FP_target=5, hardcoded_threshold=None):
   """
   plots threshold for each neg csv
   """
@@ -109,8 +117,10 @@ def plot_threshold(csv_dir, out_dir,FP_target=5):
   for i, threshold, label in zip(range(len(df)), df['threshold'], df['label']):
       ax.text(i, threshold, f"{label}", ha='center', va='bottom', fontsize=fontsize)
 
-  ninefive_pertile = df['threshold'].quantile(0.95)
-  line = ax.axhline(y=ninefive_pertile, color='r', linestyle='--', label=f'95% Pertile: {ninefive_pertile:.2f}')
+  # Use hardcoded threshold if provided, otherwise calculate 95th percentile
+  threshold_to_use = hardcoded_threshold if hardcoded_threshold is not None else df['threshold'].quantile(0.95)
+  line = ax.axhline(y=threshold_to_use, color='r', linestyle='--', 
+                    label=f'{"Hardcoded" if hardcoded_threshold is not None else "95% Pertile"}: {threshold_to_use:.2f}')
   ax.legend(handles=[line], fontsize=fontsize)
 
   ax.set_title('Thresholds by File', fontsize=fontsize+2)
@@ -120,7 +130,7 @@ def plot_threshold(csv_dir, out_dir,FP_target=5):
   plt.tight_layout(pad=0.05)
   plt.savefig(os.path.join(out_dir, 'thresholds_by_file.pdf'), dpi=300, transparent=True)      
 
-  return ninefive_pertile
+  return threshold_to_use
 
 def calculate_fpr_fnr(csv_dir, threshold=0.5):
   """
@@ -190,7 +200,6 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
   fnr_slides = []
   fpr_slides = []
   for thr in tqdm(thrs):
-    #fpr_list, _, fps = calculate_fpr_fnr(csv_dir, thr)
 
     fnr_list, fps ,fpr_list = [], [] , [] 
     for file_name, df in zip(os.listdir(csv_dir), dfs):
@@ -203,10 +212,12 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
         fpr = np.sum(df['parasite output'] >= thr) / total
         fpr_list.append(fpr)
         
-      else:
-        #print(np.sum(df['parasite output'] < thr))
+      elif file_name in pos_files:
         fnr = np.sum(df['parasite output'] < thr) /total
         fnr_list.append(fnr)
+
+      else:
+        pass
 
     fpr_slides.append((fpr_list))
     fnr_slides.append((fnr_list))
@@ -220,7 +231,7 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
   
   # save the data as csv fith slide name and threshold
   fnr_df = pd.DataFrame(fnr_slides, columns=[f'thr_{thr}' for thr in thrs])
-  fnr_df['file_name'] = [file_name for file_name in os.listdir(csv_dir) if file_name not in neg_files]
+  fnr_df['file_name'] = [file_name for file_name in os.listdir(csv_dir) if file_name in pos_files]
   fnr_df.to_csv(os.path.join(out_dir, 'fnr.csv'), index=False)
 
   fp_df = pd.DataFrame(fps_slides, columns=[f'thr_{thr}' for thr in thrs])
@@ -239,19 +250,12 @@ def plot_fp_fnr(csv_dir, out_dir, thr_start=0.05):
 
   # compute an average fnr 
   fnr_avg = np.mean(fnr_slides, axis=0)
-  # plot with pink with clear markers
-  #line = ax2.plot(thrs, fnr_avg, label='FNR Avg', color='orange', marker='o', linewidth=linewidth)
-  # show the exact number at fnr_avg[0] in the plot
-  #ax2.text(thrs[0], fnr_avg[0], f'{fnr_avg[0]:.2f}', ha='right', va='bottom', fontsize=5)
-  # shows the legend only for the average
-  #ax2.legend(handles=line)
-
 
   ax.set_xlabel('Threshold', fontsize=fontsize)
 
   ax.set_ylabel('False positive count / µL', color=red, fontsize=fontsize)
   ax.tick_params(axis='y', labelcolor=red)
-  ax.set_ylim(0, 15)
+  ax.set_ylim(0, 100)
   ax2.set_ylabel('Per spot false negative rate', color=blue, fontsize=fontsize)
   ax2.tick_params(axis='y', labelcolor=blue)
   ax2.set_ylim(0, 1)
@@ -266,7 +270,7 @@ def calculate_fnr(csv_dir, threshold_path):
   fnr_list = []
 
   for pos_file in os.listdir(csv_dir):
-    if pos_file.endswith('.csv') and pos_file not in neg_files:
+    if pos_file.endswith('.csv') and pos_file in pos_files:
       pos_file_path = os.path.join(csv_dir, pos_file)
       pos_df = pd.read_csv(pos_file_path)
       for i, row in thresholds_df.iterrows():
@@ -304,8 +308,8 @@ def plot_ratio_matrix(csv_dir, out_dir,FP_target=5):
 
   c = ax.pcolor(matrix_df, cmap='Blues', vmin=0, vmax=1)
 
-  ax.set_xticks(np.arange(matrix_df.shape[1]), minor=False)
-  ax.set_xticklabels([col[:7] for col in matrix_df.columns], minor=False, fontsize=ticksize)
+  ax.set_xticks(np.arange(1, matrix_df.shape[1] + 1), minor=False)
+  #ax.set_xticklabels([col[:7] for col in matrix_df.columns], minor=False, fontsize=ticksize)
   plt.xticks(rotation=45)
 
   if not MANUSCRIPT_MODE:
@@ -343,10 +347,16 @@ def calculate_roc(csv_dir):
 
     if file_name in neg_files:
       y_true.extend([0] * len(df))
-    else:
-      y_true.extend([1] * len(df))
+      y_scores.extend(df['parasite output'].tolist())
 
-    y_scores.extend(df['parasite output'].tolist())
+    elif file_name in pos_files:
+      y_true.extend([1] * len(df))
+      y_scores.extend(df['parasite output'].tolist())
+    else:
+      pass
+
+  print("Number of positive spots: ", sum(np.array(y_true).flatten() == 1))
+  print("Number of negative spots: ", sum(np.array(y_true).flatten() == 0))
 
   fpr, tpr, thresholds = roc_curve(y_true, y_scores)
   roc_auc = auc(fpr, tpr)
@@ -407,10 +417,13 @@ def plot_roc_curve(csv_dir, out_dir,fpr_end = 0.0001,fpr_cutoff = 0.5,tpr_cutoff
   ax.scatter(fpr_cutoff, tpr_cutoff, color='r', s=markersize)
   #ax.text(fpr_cutoff, tpr_cutoff, f" TPR: {tpr_cutoff:.4f}", ha='left', va='top', fontsize=fontsize)
 
-  ax.set_xlim([0.0000001, 0.00004])
-  # use e notation for the x-axis
-  ax.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
-  ax.set_ylim([0.7, 1.0])
+  print(fpr_cutoff, tpr_cutoff)
+
+  ax.set_xlim([0.0000001, 1.3e-4])
+  ax.set_xticks([1e-5, 5e-5, 1e-4])
+  ax.set_xticklabels(['1e-5', '5e-5', '1e-4'])
+
+  ax.set_ylim([0.6, 1.0])
   ax.set_xlabel('False Positive Rate', fontsize=fontsize)
   ax.set_ylabel('True Positive Rate', fontsize=fontsize)
   
@@ -564,11 +577,13 @@ def calculate_confusion_matrix(csv_dir, threshold=0.5):
       fp = np.sum(df['parasite output'] > threshold)
       tn = np.sum(df['parasite output'] <= threshold)
       fn = 0
-    else:  # pos
+    elif file_name in pos_files:  # pos
       tp = np.sum(df['parasite output'] > threshold)
       fp = 0
       tn = 0
       fn = np.sum(df['parasite output'] <= threshold)
+    else:
+      pass
 
     name = _get_label(file_name)
     confusion_matrix.append([name, tp, fp, tn, fn])
@@ -656,4 +671,81 @@ def plot_confusion_matrix(csv_dir, out_dir, threshold=0.5):
     plt.savefig(os.path.join(out_dir, 'confusion_matrix_small.pdf'), dpi=300, transparent=True)      
     plt.close()
 
+    figsize = (2.5, 2.5)  # in cm
+    fig, ax = plt.subplots(figsize=(figsize[0]/2.54, figsize[1]/2.54))
+    set_figure_properties(fig, ax, fontsize, axislinewidth)
+
+    im = ax.imshow(cm, interpolation='nearest', cmap='Blues')
+
+    fmt = '.3f'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, f'{cm[i, j]*100:{fmt}}%',
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black",
+                    fontsize=fontsize-2)
+
+    ax.set_xlabel('Predicted', fontsize= fontsize -1 )
+    ax.set_ylabel('True', fontsize= fontsize -1 )
+    # add tick labels as P AND N
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(['P', 'N'], fontsize=fontsize-1)
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(['P', 'N'], fontsize=fontsize-1)
+
+    # save the figure
+    plt.tight_layout(pad=0.05)
+    plt.savefig(os.path.join(out_dir, 'confusion_matrix_small_labels.pdf'), dpi=300, transparent=True)      
+    plt.close()
+
     return TPR, FPR, TNR, FNR
+
+
+def generate_count_csv(csv_dir, save_path, threshold):
+    """
+    Generates count CSV file for a single threshold value.
+    
+    Args:
+        csv_dir (str): Directory containing the prediction CSV files
+        save_path (str): Directory to save the output CSV file
+        threshold (float): Threshold value to use for predictions
+    """
+    # Read dataset IDs from cell_count.csv
+    cell_count_df = pd.read_csv('utils/cell_count.csv')
+    datasets_to_infer = cell_count_df['dataset ID'].tolist()
+
+    data = {
+        "dataset ID": datasets_to_infer,
+        "predicted positive": [-1] * len(datasets_to_infer),
+        "predicted negative": [-1] * len(datasets_to_infer),
+        "predicted unsure": [-1] * len(datasets_to_infer)
+    }
+    all_dataset_prediction_counts = pd.DataFrame(data)
+
+    # Process each dataset
+    for dataset_id_0 in datasets_to_infer:
+        dataset_id = os.path.join(csv_dir, dataset_id_0)
+        path_csv_annotations_and_predictions = dataset_id + '.csv'
+
+        # Read and process predictions
+        df = pd.read_csv(path_csv_annotations_and_predictions)
+        pred_pos = len(df[df['parasite output'] >= threshold])
+        pred_neg = len((df['parasite output'] < threshold))
+        pred_unsure = len(df) - pred_pos - pred_neg
+
+        all_dataset_prediction_counts.loc[all_dataset_prediction_counts['dataset ID'] == dataset_id_0, 
+                                        ['predicted positive', 'predicted negative', 'predicted unsure']] = [pred_pos, pred_neg, pred_unsure]
+
+    # Add segmentation stats
+    df2 = pd.read_csv('utils/cell_count.csv')[['dataset ID', 'Total Count']]
+    merged_df = pd.merge(all_dataset_prediction_counts, df2, on="dataset ID")
+    merged_df['Positives per 5M RBC'] = merged_df['predicted positive'] / (merged_df['Total Count'] / 5e6)
+
+    # Create directory if it doesn't exist
+    os.makedirs(save_path, exist_ok=True)
+    
+    # Save the results
+    output_file = os.path.join(save_path, f'all_ds_prediction_counts_{threshold:.3f}.csv')
+    merged_df.to_csv(output_file, index=False)
+    return output_file
